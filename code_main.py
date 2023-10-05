@@ -1,11 +1,16 @@
 ''' generate a random sequrnce of integers '''
 import random
 min_limit = 0
-max_limit = 0
-seq_og = [random.randint(min_limit,max_limit) for i in range(64)]      #   generating 16 sameple sequence
+max_limit = 65000
+# seq_og = [int(random.randint(min_limit,0)) for i in range(128)]      #   generating 16 sameple sequence
+seq1 = [int(random.randint(min_limit,1)) for i in range(64)]
+seq2 = [int(random.randint(min_limit,1000)) for i in range(128)]
+seq3 = [int(random.randint(min_limit,0)) for i in range(128)]
+seq_og = seq1 + seq2 + seq3
+
 print(f'original sequence: {seq_og}')
 resolution = 16     #   resolution: number of bits to repreent each sample   
-block_size = 16     #   block_size: number of samples in a block   
+block_size = 64     #   block_size: number of samples in a block   
 '''breaks the sequence into groups'''
 def breaker(sequence):
     N= block_size
@@ -150,7 +155,11 @@ def second_extension(sequence):
 
     for pair in paired_list:
         gamma = 0.5*(pair[0] + pair[1])*(pair[0] + pair[1] + 1) + pair[1]
-        encoded.append(FS_element(int(gamma+1)))
+        if int(gamma+1)<=5:
+            encoded.append(FS_element(int(gamma+1)))
+        else:
+            print("not executing second extension")
+            return 0
         # print(gamma)
     if resolution==1 or resolution==2:
         option_id = bin(1)[2:].zfill(2) 
@@ -165,36 +174,36 @@ def second_extension(sequence):
     encoded.insert(0,option_id)
     encoded = "".join(encoded)
     return encoded
+
+def minimum(a,b):
+    smallest = 0
+    if len(a)<=len(b):
+        smallest = a
+    else:
+        smallest = b
+    return smallest
+
 '''Code Selection
     checks whick compression technique minimizes the length 
     and return the encoded block'''
 def code_select(block):
     fs_encoded = FS_block(block)
-    
-    split_sample_encoded_list = [split_sample(block,i) for i in range(1,int(resolution/2))]
-    split_sample_encoded_list_len = [len(codes) for codes in split_sample_encoded_list]
-    split_sample_encoded = split_sample_encoded_list[split_sample_encoded_list_len.index(min(split_sample_encoded_list_len))]
+    '''modify k split selection method to optimise the memory usage'''
+    smallest = split_sample(block,1)
+    for i in range(1,int(resolution/2)):
+        temp = split_sample(block,i)
+        if len(temp)<=len(smallest):
+            smallest = temp
+    split_sample_encoded = smallest    
     
     second_extension_encoded = second_extension(block)
-
     no_compression_encoded = no_copression(block)
-    
-    seq = [fs_encoded, split_sample_encoded, second_extension_encoded,no_compression_encoded]
-    seq_len = [len(fs_encoded),len(split_sample_encoded),
-               len(second_extension_encoded),len(no_compression_encoded)]
-    
-    encoded_block = seq[seq_len.index(min(seq_len))]     
-    
-    # if (seq_len.index(min(seq_len)))==0:
-    #     print('FS')
-    # elif (seq_len.index(min(seq_len)))==1:
-    #     print('split sample')
-    # elif(seq_len.index(min(seq_len)))==2:
-    #     print('second extension')
-    # elif(seq_len.index(min(seq_len)))==3:
-    #     print('no compression')
-
+    if second_extension_encoded == 0:
+        encoded_block = minimum(minimum(fs_encoded,split_sample_encoded), no_compression_encoded)
+    else:
+        encoded_block = minimum(minimum(fs_encoded,split_sample_encoded),minimum(second_extension_encoded , no_compression_encoded))
     return encoded_block
+
 '''zero block'''
 def zero_block(sequence):
     zeros = 0
@@ -214,14 +223,14 @@ def zero_block(sequence):
                 else:
                     encoded.append(FS_element(zeros+1))
             zeros = 0
-            print(f'block: {block}')
+            # print(f'block: {block}')
             encoded.append(code_select(block))
     if zeros!=0:
             # print(f'zeros = {zeros}')   # process zeros here
             if zeros<=ROS:
-                encoded.append(FS_element(zeros-1))
-            else:
                 encoded.append(FS_element(zeros))
+            else:
+                encoded.append(FS_element(zeros+1))
     if resolution==1 or resolution==2:
         option_id = bin(0)[2:].zfill(3) 
     elif resolution==3 or resolution==4:
@@ -234,7 +243,7 @@ def zero_block(sequence):
         option_id = bin(0)[2:].zfill(7)         
     encoded.insert(0,option_id)
     encoded = "".join(encoded)
-    # print(encoded)
+    print(f'encoded {encoded}')
     return encoded
 # # print(zero_block())
 # m = [[0,0,0,0,0,0,0,0],[0,0,0,0,0,0,0,0]]
@@ -280,6 +289,7 @@ def executor(sequence):
 
 
 
+''' dummy decoder'''
 # Decoder Part
 '''list to store the decoded sequnce'''
 decoded_seq = []
@@ -337,12 +347,12 @@ def FS_decoder(seq,block_size):
             zeros = 0
             if ones == block_size:  # finished FS code for J(block size) samples
                 return dec_seq
-print(FS_decoder('0100010001',3))
+# print(FS_decoder('0100010001',3))
 def FS_block_decoder(seq):
     msb_dec = FS_decoder(seq,block_size)
     msb_bin = [bin(i)[2:].zfill(resolution) for i in msb_dec]
     current_index = len(msb_dec)+sum(msb_dec)
-    print(f'msb_dec in FS block {msb_dec}')
+    # print(f'msb_dec in FS block {msb_dec}')
     decoded_seq.append(msb_dec)
     return (current_index+4)
 def split_sample_decoder(seq,k):
@@ -351,16 +361,16 @@ def split_sample_decoder(seq,k):
     current_index = len(msb_dec)+sum(msb_dec)                               
     block_reamining = seq[current_index: (current_index)+(k*block_size)]
     lsb_bin = [block_reamining[i:i+k] for i in range(0,len(block_reamining),k)]          
-    print(f'msb {msb_bin} & lsb {lsb_bin}')    
+    # print(f'msb {msb_bin} & lsb {lsb_bin}')    
     decoded_bin = []
     for i in range(len(msb_bin)):
         decoded_bin.append(msb_bin[i]+lsb_bin[i])
-    print(decoded_bin)
+    # print(decoded_bin)
     decoded_dec = [int(i,2) for i in decoded_bin]
-    print(decoded_dec)
+    # print(decoded_dec)
     decoded_seq.append(decoded_dec)
     current_index = (current_index)+(k*block_size)
-    print(f'current block: {seq[:current_index]} |  current index: {current_index+4}')
+    # print(f'current block: {seq[:current_index]} |  current index: {current_index+4}')
     return (current_index+4)
 def no_compression_decoder(seq):
     sampled_block = [seq[i:i+resolution] for i in range(0,resolution*block_size,resolution)]
@@ -370,12 +380,12 @@ def no_compression_decoder(seq):
     return (resolution*block_size + 4)
 '''Secon Extension Decoder'''
 '''extract the 5 bit id first and then run'''
-delta = []
 '''gets a binary sequence
     '''
 def second_extension_decoder(seq):
     gamma_list = FS_decoder(seq,block_size/2)
     # gamma_list = [1,0,4,1]
+    delta = []
     for i in range(len(gamma_list)):
         if gamma_list[i]==0:
             beta = 0
@@ -409,18 +419,12 @@ def second_extension_decoder(seq):
         del_odd = beta - del_even
         delta.append(del_odd) 
         delta.append(del_even)   
-    # print(f'gamma list {gamma_list}')
+    print(f'gamma list {gamma_list}')
     # print(delta)
     decoded_seq.append(delta)
     current_index = len(gamma_list)+sum(gamma_list)
     return (current_index+5)
-# test_seq= [1,0,0,0,1,1,1,0]
-# # test_seq = [int(i) for i in test_seq]
-# # test_seq = [FS_element(i+1) for i in test_seq]
-# # test_seq = "".join(test_seq)
-# test_seq = second_extension(test_seq)
-# print(f' coeded: {test_seq}')
-# second_extension_decoder(test_seq[5:])
+
 '''zero block decoder'''
 def zero_block_decoder(seq):
     zeros = 0
@@ -431,9 +435,9 @@ def zero_block_decoder(seq):
             zeros+=1
         else:
             if zeros<=ROS:
-                all_zero_blocks = zeros+1
-            else:
                 all_zero_blocks = zeros
+            else:
+                all_zero_blocks = zeros+1
     decoded_all_zero_block = [0 for i in range(all_zero_blocks*block_size)]
     decoded_seq.append(decoded_all_zero_block)
     current_index = zeros+1
@@ -443,36 +447,36 @@ def entropy_decoder(seq):
     # print(seq)
     current_index = 0
     block_id = ''
-    while(current_index<len(seq)):
-        print(f'current index {current_index}')
+    while(current_index<=len(seq)):
+        # print(f'current index {current_index}')
         if str(seq[current_index:current_index+4]) in id_lut:
-            print('4 bit')
+            # print('4 bit')
             ''' so its FS/ split_sample or no compression'''
             block_id = str(seq[current_index:current_index+4])
             if block_id==FS_block_id:
-                print('FS block')
+                # print('FS block')
                 current_index = current_index + FS_block_decoder(seq[current_index+4:])
                 # current_index = current_index + FS_block_decodeer(seq[current_index+4:])
             elif block_id==no_copression_id:
-                print('no compression')
+                # print('no compression')
                 current_index = current_index + no_compression_decoder(seq[current_index+4:])
             elif block_id in k_id:
-                print('split sample')
+                # print('split sample')
                 i = k_id.index(block_id)
                 print(block_id, i+1)
                 current_index = current_index + split_sample_decoder(seq[current_index+4:],i+1)
         elif str(seq[current_index:current_index+5]) in id_lut:
-            print('5 bit')
+            # print('5 bit')
             ''' so its zero_block or second extension'''
             block_id = str(seq[current_index:current_index+5])
             if block_id == second_extension_id:
-                print('secondf extension')
+                # print('secondf extension')
                 current_index = current_index + second_extension_decoder(seq[current_index+5:])
             elif block_id == zero_block_id:
-                print("zero block decoder")
+                # print("zero block decoder")
                 current_index = current_index + zero_block_decoder(seq[current_index+5:])
         else:
-            print('nope')
+            # print('nope')
             break
 '''Post Processing'''
 def prop(seq):
@@ -513,20 +517,23 @@ def post_processor(seq):
 
 
 
-
 # Execution & Test
-# my_seq = [1,2,3,4,5,6,7,8,8,8,8,9]
-# s = post_processor(pre_processor(seq_og))
-# print(s)
-s =executor(seq_og)
-print(f'coded: {s}')
+
+def post_processor(seq):
+    return demapper(seq)
+
+s = executor(seq_og)
+# print(f'encoded {s}')
 s = joiner(s)
-print(f'joined: {s}')
 entropy_decoder(s)
-print(f'original sequence: {seq_og}')
-# print(decoded_seq)
-# print(post_processor(decoded_seq)
+# for block in decoded_seq:
+#     print(post_processor(block))
 seq_reconstruct = []
 for block in decoded_seq:
     seq_reconstruct.extend(post_processor(block))
-print(seq_reconstruct) 
+# print(seq_reconstruct)
+# print(len(seq_reconstruct))
+
+seq_reconstruct = [int(i) for i in seq_reconstruct]
+if seq_reconstruct==seq_og:
+    print("true")
