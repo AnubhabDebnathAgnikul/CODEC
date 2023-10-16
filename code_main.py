@@ -2,11 +2,11 @@
 import random
 min_limit = 0
 max_limit = 65000
-# seq_og = [int(random.randint(min_limit,0)) for i in range(128)]      #   generating 16 sameple sequence
-seq1 = [int(random.randint(min_limit,1)) for i in range(64)]
-seq2 = [int(random.randint(min_limit,1000)) for i in range(128)]
-seq3 = [int(random.randint(min_limit,0)) for i in range(128)]
-seq_og = seq1 + seq2 + seq3
+seq_og = [int(random.randint(9820,9850)) for i in range(1280)]      #   generating 16 sameple sequence
+# seq1 = [int(random.randint(min_limit,1)) for i in range(64)]
+# seq2 = [int(random.randint(min_limit,1000)) for i in range(128)]
+# seq3 = [int(random.randint(min_limit,0)) for i in range(128)]
+# seq_og = seq1 + seq2 + seq3
 
 print(f'original sequence: {seq_og}')
 resolution = 16     #   resolution: number of bits to repreent each sample   
@@ -42,7 +42,7 @@ def dec(seq):
    return:     delta pre-processed block''' 
 def pre_processor(block):
     seq = block
-    seq_delayed = [seq[i-1] if i>0 else 0 for i in range(len(seq))]
+    seq_delayed = [seq[i-1] if i>0 else 9800 for i in range(len(seq))]
     d = [seq[i] - seq_delayed[i] for i in range(len(seq))]
     ymax = max_limit
     ymin = min_limit
@@ -61,6 +61,7 @@ def pre_processor(block):
         else:
             delta.append(T + abs(d[i]))
     # print(f'diff{d}')
+    # print(delta)
     return delta
 '''Finite Sequence: 
    argument:   block
@@ -280,10 +281,11 @@ def executor(sequence):
     #   return encoded sequence     
     # print(f'ecoded blocked sequence: {encoded_seq}')
     encoded_seq = "".join(encoded_seq)
-    print(encoded_seq)
+    # print(encoded_seq)
     # print(len(encoded_seq))
     e = dec(encoded_seq)
     c_ratio = len(seq_og)/len(e)
+    print(f'enoded seq: {e}')
     print(f'compression ratio: {c_ratio}')
     return e
 
@@ -480,9 +482,12 @@ def entropy_decoder(seq):
             break
 '''Post Processing'''
 def prop(seq):
-    x = [0]
+    x = [9800]
     for i in range(len(seq)):
-        delta = seq[i] + x[i]
+        if i<2:
+            delta = seq[i]/2 + x[i]
+        else:
+            delta = seq[i] + x[i]
         x.append(delta)
     # print(f'prop o/p {x[1:]}')
     return x[2:]
@@ -537,3 +542,5 @@ for block in decoded_seq:
 seq_reconstruct = [int(i) for i in seq_reconstruct]
 if seq_reconstruct==seq_og:
     print("true")
+
+print(f'decoded seq: {seq_reconstruct}')
