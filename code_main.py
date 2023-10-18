@@ -2,11 +2,14 @@
 import random
 min_limit = 0
 max_limit = 65000
-# seq_og = [int(random.randint(9820,9850)) for i in range(1280)]      #   generating 16 sameple sequence
+seq_og = [int(random.randint(9820,9850)) for i in range(1280)]      #   generating 16 sameple sequence
 # seq1 = [int(random.randint(min_limit,10)) for i in range(64*5)]
 # seq2 = [int(random.randint(min_limit,1000)) for i in range(64*10)]
-seq3 = [int(random.randint(min_limit,0)) for i in range(64*8)]
-seq_og = seq3
+# seq3 = [int(random.randint(min_limit,0)) for i in range(64*8)]
+# seq_og = seq3
+
+
+threshold = min(seq_og)
 
 print(f'original sequence: {seq_og}')
 resolution = 16     #   resolution: number of bits to repreent each sample   
@@ -42,7 +45,7 @@ def dec(seq):
    return:     delta pre-processed block''' 
 def pre_processor(block):
     seq = block
-    seq_delayed = [seq[i-1] if i>0 else 0 for i in range(len(seq))]
+    seq_delayed = [seq[i-1] if i>0 else threshold for i in range(len(seq))]
     d = [seq[i] - seq_delayed[i] for i in range(len(seq))]
     ymax = max_limit
     ymin = min_limit
@@ -482,13 +485,13 @@ def entropy_decoder(seq):
             break
 '''Post Processing'''
 def prop(seq):
-    x = [0]
+    x = [threshold]
     for i in range(len(seq)):
-    #     if i<2:
-    #         delta = seq[i]/2 + x[i]
-    #     else:
-    #         delta = seq[i] + x[i]
-        delta = seq[i] + x[i]
+        if i<2:
+            delta = seq[i]/2 + x[i]
+        else:
+            delta = seq[i] + x[i]
+        # delta = seq[i] + x[i]
         x.append(delta)
     # print(f'prop o/p {x[1:]}')
     return x[2:]
