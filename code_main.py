@@ -2,11 +2,11 @@
 import random
 min_limit = 0
 max_limit = 65000
-seq_og = [int(random.randint(9820,9850)) for i in range(1280)]      #   generating 16 sameple sequence
-# seq1 = [int(random.randint(min_limit,1)) for i in range(64)]
-# seq2 = [int(random.randint(min_limit,1000)) for i in range(128)]
-# seq3 = [int(random.randint(min_limit,0)) for i in range(128)]
-# seq_og = seq1 + seq2 + seq3
+# seq_og = [int(random.randint(9820,9850)) for i in range(1280)]      #   generating 16 sameple sequence
+# seq1 = [int(random.randint(min_limit,10)) for i in range(64*5)]
+# seq2 = [int(random.randint(min_limit,1000)) for i in range(64*10)]
+seq3 = [int(random.randint(min_limit,0)) for i in range(64*8)]
+seq_og = seq3
 
 print(f'original sequence: {seq_og}')
 resolution = 16     #   resolution: number of bits to repreent each sample   
@@ -42,7 +42,7 @@ def dec(seq):
    return:     delta pre-processed block''' 
 def pre_processor(block):
     seq = block
-    seq_delayed = [seq[i-1] if i>0 else 9800 for i in range(len(seq))]
+    seq_delayed = [seq[i-1] if i>0 else 0 for i in range(len(seq))]
     d = [seq[i] - seq_delayed[i] for i in range(len(seq))]
     ymax = max_limit
     ymin = min_limit
@@ -439,7 +439,7 @@ def zero_block_decoder(seq):
             if zeros<=ROS:
                 all_zero_blocks = zeros
             else:
-                all_zero_blocks = zeros+1
+                all_zero_blocks = zeros-1
     decoded_all_zero_block = [0 for i in range(all_zero_blocks*block_size)]
     decoded_seq.append(decoded_all_zero_block)
     current_index = zeros+1
@@ -482,12 +482,13 @@ def entropy_decoder(seq):
             break
 '''Post Processing'''
 def prop(seq):
-    x = [9800]
+    x = [0]
     for i in range(len(seq)):
-        if i<2:
-            delta = seq[i]/2 + x[i]
-        else:
-            delta = seq[i] + x[i]
+    #     if i<2:
+    #         delta = seq[i]/2 + x[i]
+    #     else:
+    #         delta = seq[i] + x[i]
+        delta = seq[i] + x[i]
         x.append(delta)
     # print(f'prop o/p {x[1:]}')
     return x[2:]
@@ -520,8 +521,6 @@ def post_processor(seq):
     return demapper(seq)
 
 
-
-
 # Execution & Test
 
 def post_processor(seq):
@@ -544,3 +543,4 @@ if seq_reconstruct==seq_og:
     print("true")
 
 print(f'decoded seq: {seq_reconstruct}')
+print(f'decoded length {len(seq_reconstruct)}')
