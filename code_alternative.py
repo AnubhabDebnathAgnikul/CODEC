@@ -2,7 +2,7 @@
 import random
 min_limit = 0
 max_limit = 65000
-seq_og = [int(random.randint(9820,9830)) for i in range(64)]      #   generating 16 sameple sequence
+seq_og = [int(random.randint(9820,9830)) for i in range(1280)]      #   generating 16 sameple sequence
 # seq1 = [int(random.randint(min_limit,10)) for i in range(64*5)]
 # seq2 = [int(random.randint(min_limit,1000)) for i in range(64*10)]
 # seq3 = [int(random.randint(min_limit,0)) for i in range(64*8)]
@@ -385,9 +385,9 @@ def split_sample_decoder(seq,k,first_sample):
     # print(decoded_dec)
     decoded_dec.insert(0,int(first_sample,2))
     decoded_seq.append(decoded_dec)
-    current_index = (current_index)+(k*block_size)
+    current_index = (current_index)+(k*(block_size-1))
     # print(f'current block: {seq[:current_index]} |  current index: {current_index+4}')
-    return (current_index+resolution)
+    return (current_index+resolution+4)
 def no_compression_decoder(seq):
     sampled_block = [seq[i:i+resolution] for i in range(0,resolution*block_size,resolution)]
     sampled_dec = [int(sample,2) for sample in sampled_block]
