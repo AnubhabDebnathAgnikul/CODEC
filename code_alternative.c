@@ -5,7 +5,7 @@
 #include <unistd.h>
 #include <time.h>
 #define SEQ_OG_SIZE 1280
-#define block_size 64
+#define BLOCK_SIZE 64
 #define resolution 16
 static int min_limit = 0;
 static int max_limit = 65000;
@@ -35,14 +35,14 @@ int decoded_seq[SEQ_OG_SIZE];
 int decoded_index = 0;
 
 char *zero_block(int *sequence, int length, char *result, char *encoded);
-void breaker(int *sequence, int range, int blocks, int block[blocks][block_size]);
+void breaker(int *sequence, int range, int blocks, int block[blocks][BLOCK_SIZE]);
 int *pre_processor(int *block, int len, int *seq_delayed, int *delta);
 int *rand_seq_og(int min, int max, int range, int *seq_og);
 void FS_element(int zeros, char *fs_element);
 int *code_select(int *block, char *encoded_block, int index);
 char *split_sample(int *block, int k, int size, char *encoded, int *index);
 char *second_extension(int *sequence);
-void executor(int *seq_og, int seq_og_size, int blocks, int blocked_sequence[blocks][block_size], int *delta, int *encoded_seq);
+void executor(int *seq_og, int seq_og_size, int blocks, int blocked_sequence[blocks][BLOCK_SIZE], int *delta, int *encoded_seq);
 int *FS_block(int *block, char *encoded_block, int *index);
 char *binary_result(int value, char *binary_p);
 char *zfill(int number, int zero_resolution, char *binary_p);
@@ -152,7 +152,7 @@ int zero_block_decoder(int *seq, int start_index, int seq_length)
         }
     }
 
-    for (int i = 0; i < all_zero_blocks * block_size; i++)
+    for (int i = 0; i < all_zero_blocks * BLOCK_SIZE; i++)
     {
         decoded_all_zero_block[i] = 0;
         decoded_seq[decoded_index++] = decoded_all_zero_block[i];
@@ -168,7 +168,7 @@ int second_extension_decoder(int seq, char *first_sample)
     printf("seq %d\n", seq);
     int index = 0;
     int dec_seq[4096] = {0};
-    int *gamma_list = FS_decoder(seq, block_size / 2 + 1, SEQ_OG_SIZE, dec_seq, &index, 4096);
+    int *gamma_list = FS_decoder(seq, BLOCK_SIZE / 2 + 1, SEQ_OG_SIZE, dec_seq, &index, 4096);
     int delta[100];
     int ms = 0;
     int beta = 0;
@@ -242,10 +242,10 @@ int split_sample_decoder(int *seq, int k, char *first_sample)
 {
     int index = 0;
     int dec_seq[4096] = {0};
-    int *msb_dec = FS_decoder(seq, block_size, SEQ_OG_SIZE, dec_seq, &index, 4096);
-    int msb_bin[block_size][resolution];
+    int *msb_dec = FS_decoder(seq, BLOCK_SIZE, SEQ_OG_SIZE, dec_seq, &index, 4096);
+    int msb_bin[BLOCK_SIZE][resolution];
 
-    for (int i = 0; i < block_size; i++)
+    for (int i = 0; i < BLOCK_SIZE; i++)
     {
         char binary[resolution - k + 1];
         itoa(msb_dec[i], binary, 2);
@@ -262,12 +262,12 @@ int split_sample_decoder(int *seq, int k, char *first_sample)
         msb_bin[i][resolution - k] = '\0';
     }
     int total = 0;
-    int current_index = block_size + sum(msb_dec, index, &total);
-    int block_remaining_size = k * block_size;
+    int current_index = BLOCK_SIZE + sum(msb_dec, index, &total);
+    int block_remaining_size = k * BLOCK_SIZE;
     int *block_remaining = malloc(block_remaining_size * sizeof(int));
     memcpy(block_remaining, seq + current_index, block_remaining_size * sizeof(int));
-    int lsb_bin[block_size][k];
-    for (int i = 0; i < block_size; i++)
+    int lsb_bin[BLOCK_SIZE][k];
+    for (int i = 0; i < BLOCK_SIZE; i++)
     {
         for (int j = 0; j < k; j++)
         {
@@ -275,12 +275,12 @@ int split_sample_decoder(int *seq, int k, char *first_sample)
         }
     }
     printf("msb ");
-    for (int i = 0; i < block_size; i++)
+    for (int i = 0; i < BLOCK_SIZE; i++)
     {
         printf("%ls ", msb_bin[i]);
     }
     printf("& lsb ");
-    for (int i = 0; i < block_size; i++)
+    for (int i = 0; i < BLOCK_SIZE; i++)
     {
         for (int j = 0; j < k; j++)
         {
@@ -288,8 +288,8 @@ int split_sample_decoder(int *seq, int k, char *first_sample)
         }
     }
     printf("\n");
-    char decoded_bin[block_size][resolution];
-    for (int i = 0; i < block_size; i++)
+    char decoded_bin[BLOCK_SIZE][resolution];
+    for (int i = 0; i < BLOCK_SIZE; i++)
     {
         strcpy(decoded_bin[i], msb_bin[i]);
 
@@ -300,17 +300,17 @@ int split_sample_decoder(int *seq, int k, char *first_sample)
             strcat(decoded_bin[i], binary);
         }
     }
-    int decoded_dec[block_size];
-    for (int i = 0; i < block_size; i++)
+    int decoded_dec[BLOCK_SIZE];
+    for (int i = 0; i < BLOCK_SIZE; i++)
     {
         decoded_dec[i] = strtol(decoded_bin[i], NULL, 2);
     }
     decoded_seq[index++] = strtol(first_sample, NULL, 2);
-    for (int y = 0; y < block_size; y++)
+    for (int y = 0; y < BLOCK_SIZE; y++)
     {
         decoded_seq[index++] = decoded_dec[y];
     }
-    current_index += k * (block_size - 1);
+    current_index += k * (BLOCK_SIZE - 1);
     return current_index + resolution + 4;
 }
 int no_compression_decoder(char *seq)
@@ -319,7 +319,7 @@ int no_compression_decoder(char *seq)
     int *sampled_dec;
     int result;
 
-    int num_samples = block_size * resolution;
+    int num_samples = BLOCK_SIZE * resolution;
     int num_blocks = num_samples / resolution;
 
     sampled_dec = (int *)malloc(num_blocks * sizeof(int));
@@ -367,7 +367,7 @@ int *FS_block_decoder(char *seq, int seq_size, char *first_sample)
     char binary_arr[64];
     char *binary_p = &binary_arr;
     int index = 0;
-    FS_decoder(seq, block_size, seq_size, dec_seq, &index, 4096);
+    FS_decoder(seq, BLOCK_SIZE, seq_size, dec_seq, &index, 4096);
     for (int i = 0; dec_seq != EOF || dec_seq != NULL; i++)
     {
         zfill(dec_seq[i], resolution, binary_p);
@@ -885,10 +885,10 @@ int *code_select(int *block, char *encoded_block, int index)
 {
     int *fs_encoded = FS_block(block, encoded_block, &index);
 
-    int *smallest = split_sample(block, 1, block_size, encoded_block, &index);
+    int *smallest = split_sample(block, 1, BLOCK_SIZE, encoded_block, &index);
     for (int i = 1; i < resolution / 2; i++)
     {
-        int *temp = split_sample(block, i, block_size, smallest, &index);
+        int *temp = split_sample(block, i, BLOCK_SIZE, smallest, &index);
         if (sizeof(temp) <= sizeof(smallest))
         {
             smallest = temp;
@@ -930,13 +930,13 @@ char *zero_block(int *sequence, int length, char *result, char *encoded)
     int ROS = 4;
     char optiion_id_arr[64];
     char *option_id = &optiion_id_arr;
-    int blocks = length / block_size;
-    int reminder_samples = length % block_size;
+    int blocks = length / BLOCK_SIZE;
+    int reminder_samples = length % BLOCK_SIZE;
     if (reminder_samples > 0)
     {
         blocks += 1;
     }
-    int block_list[blocks][block_size];
+    int block_list[blocks][BLOCK_SIZE];
     breaker(sequence, length, blocks, block_list);
     int encoded_length = 0;
 
@@ -946,7 +946,7 @@ char *zero_block(int *sequence, int length, char *result, char *encoded)
         block = block_list[i];
         printf("block_list[i]\n");
         int non_zero_block = 0;
-        for (int k = 0; k < block_size; k++)
+        for (int k = 0; k < BLOCK_SIZE; k++)
         {
             printf("%d,", block[k]);
             if (0 != block[i])
@@ -1029,7 +1029,7 @@ int *pre_processor(int *block, int len, int *seq_delayed, int *delta)
     {
         seq_delayed[i] = (i > 0) ? seq[i - 1] : threshold;
     }
-    int d[block_size] = {0}, t[block_size] = {0};
+    int d[BLOCK_SIZE] = {0}, t[BLOCK_SIZE] = {0};
     for (int i = 0; i < len; i++)
     {
         d[i] = seq[i] - seq_delayed[i];
@@ -1068,6 +1068,7 @@ int *pre_processor(int *block, int len, int *seq_delayed, int *delta)
 
     return delta;
 }
+
 int *rand_seq_og(int min, int max, int range, int *seq_og) // generating 16 sameple sequence
 {
     int i = 0;
@@ -1089,9 +1090,9 @@ int *rand_seq_og(int min, int max, int range, int *seq_og) // generating 16 same
     return seq_og;
 }
 
-void breaker(int *sequence, int range, int blocks, int block[blocks][block_size])
+void breaker(int *sequence, int range, int blocks, int block[blocks][BLOCK_SIZE])
 {
-    int N = block_size; // Length of sublist
+    int N = BLOCK_SIZE; // Length of sublist
     int sequence_length = range;
     int num_of_blocks = sequence_length / N; // Number of sublists
     int remain_samples = sequence_length % N;
@@ -1126,14 +1127,15 @@ void breaker(int *sequence, int range, int blocks, int block[blocks][block_size]
         }
     }
 }
-void executor(int *seq_og, int seq_og_size, int blocks, int blocked_sequence[blocks][block_size], int *delta, int *e)
+
+void executor(int *seq_og, int seq_og_size, int blocks, int blocked_sequence[blocks][BLOCK_SIZE], int *delta, int *e)
 {
     // int *encoded_seq = NULL;
     int zero_block_seq[seq_og_size], encoded_seq[seq_og_size];
     int zero_block_seq_len = 0;
-    int N = block_size;
+    int N = BLOCK_SIZE;
     breaker(seq_og, seq_og_size / sizeof(seq_og[0]), blocks, blocked_sequence);
-    int seq_delayed[block_size];
+    int seq_delayed[BLOCK_SIZE];
     int sub_block = 0;
     int remain_samples = (seq_og_size / sizeof(seq_og[0])) % N;
     int zero_block_seq_index = 0, encoded_seq_index = 0;
@@ -1141,8 +1143,8 @@ void executor(int *seq_og, int seq_og_size, int blocks, int blocked_sequence[blo
     for (; sub_block < blocks; sub_block++)
     {
         int zero_flag = 0, non_zero_flag = 0;
-        pre_processor(blocked_sequence[sub_block], block_size, seq_delayed, delta);
-        for (int i = 0; i < block_size; i++)
+        pre_processor(blocked_sequence[sub_block], BLOCK_SIZE, seq_delayed, delta);
+        for (int i = 0; i < BLOCK_SIZE; i++)
         {
             if (delta[i] != 0)
             {
@@ -1163,7 +1165,7 @@ void executor(int *seq_og, int seq_og_size, int blocks, int blocked_sequence[blo
                 zero_block_seq_index = 0;
             }
             int j = 0;
-            for (; j < block_size; j++)
+            for (; j < BLOCK_SIZE; j++)
             {
                 encoded_seq[encoded_seq_index] = delta[j];
                 encoded_seq_index += 1;
@@ -1173,7 +1175,7 @@ void executor(int *seq_og, int seq_og_size, int blocks, int blocked_sequence[blo
         else
         {
             int j = 0;
-            for (; j < block_size; j++)
+            for (; j < BLOCK_SIZE; j++)
             {
                 zero_block_seq[zero_block_seq_index] = delta[j];
                 zero_block_seq_index += 1;
@@ -1202,21 +1204,21 @@ void executor(int *seq_og, int seq_og_size, int blocks, int blocked_sequence[blo
 int main()
 {
     int seq_og[SEQ_OG_SIZE] = {0};
-    int delta[block_size] = {0};
+    int delta[BLOCK_SIZE] = {0};
     int e[SEQ_OG_SIZE] = {0};
-    int blocks = SEQ_OG_SIZE / block_size;
-    int remain_samples = SEQ_OG_SIZE % block_size;
+    int blocks = SEQ_OG_SIZE / BLOCK_SIZE;
+    int remain_samples = SEQ_OG_SIZE % BLOCK_SIZE;
     if (remain_samples > 0)
     {
         blocks += 1;
     }
-    int blocked_sequence[blocks][block_size];
+    int blocked_sequence[blocks][BLOCK_SIZE];
     int sizeof_seq_og = sizeof(seq_og);
     rand_seq_og(9820, 9830, SEQ_OG_SIZE, seq_og);
 
     for (int i = 0; i < blocks; i++)
     {
-        for (int j = 0; j < block_size; j++)
+        for (int j = 0; j < BLOCK_SIZE; j++)
         {
             blocked_sequence[i][j] = 0;
         }
