@@ -42,9 +42,9 @@ void FS_element(int zeros, char *fs_element);
 int *code_select(int *block, char *encoded_block, int index);
 char *split_sample(int *block, int k, int size, char *encoded, int *index);
 char *second_extension(int *sequence);
-void executor(int *seq_og, int seq_og_size, int blocks, int blocked_sequence[blocks][BLOCK_SIZE], int *delta, int *encoded_seq);
-int *FS_block(int *block, char *encoded_block, int *index);
-char *binary_result(int value, char *binary_p);
+void executor(int *seq_og, int seq_og_size, int blocks, int blocks_sequence[blocks][BLOCK_SIZE], int *delta, int *encoded_seq);
+char *FS_block(int *block, char *encoded_block, int *index);
+char *int_to_binary(int value, char *binary_p);
 char *zfill(int number, int zero_resolution, char *binary_p);
 int binary_decimal(char *msb, int len);
 char *no_compression(int *block);
@@ -61,7 +61,7 @@ int second_extension_decoder(int seq, char *first_sample);
 int zero_block_decoder(int *seq, int start_index, int seq_length);
 
 char *joiner(int *seq, int seq_size);
-char *itoa(int value, char *result, int base);
+// char *itoa(long int value, char *result, int base);
 
 char *joiner(int *seq, int seq_size)
 {
@@ -81,48 +81,49 @@ char *joiner(int *seq, int seq_size)
         char buffer[33]; // 32 bits for binary representation + null terminator
         if (rem_l >= resolution)
         {
-            snprintf(buffer, resolution + 1, "%0*s", resolution, itoa(block, (char[33]){}, 2));
+            snprintf(buffer, resolution + 1, "%0*s", resolution, int_to_binary(block, (char[33]){}));
         }
         else
         {
-            snprintf(buffer, rem_l + 1, "%0*s", rem_l, itoa(block, (char[33]){}, 2));
+            snprintf(buffer, rem_l + 1, "%0*s", rem_l, int_to_binary(block, (char[33]){}));
         }
         strncat(received_seq, buffer, rem_l);
     }
     return received_seq;
 }
 
-char *itoa(int value, char *result, int base)
-{
-    // check that the base is valid
-    if (base < 2 || base > 36)
-    {
-        *result = '\0';
-        return result;
-    }
+// char *itoa(long int value, char *result, int base)
+// {
+//     // check that the base is valid
+//     if (base < 2 || base > 36)
+//     {
+//         *result = '\0';
+//         return result;
+//     }
 
-    char *ptr = result, *ptr1 = result, tmp_char;
-    int tmp_value;
+//     char *ptr = result, *ptr1 = result, tmp_char;
+//     int tmp_value;
 
-    do
-    {
-        tmp_value = value;
-        value /= base;
-        *ptr++ = "zyxwvutsrqponmlkjihgfedcba9876543210123456789abcdefghijklmnopqrstuvwxyz"[35 + abs(tmp_value % base)];
-    } while (value);
+//     do
+//     {
+//         tmp_value = value;
+//         value /= base;
+//         *ptr++ = 35 + abs(tmp_value % base);
+//         // *ptr++ = "zyxwvutsrqponmlkjihgfedcba9876543210123456789abcdefghijklmnopqrstuvwxyz"[35 + abs(tmp_value % base)];
+//     } while (value);
 
-    // Apply negative sign
-    if (tmp_value < 0)
-        *ptr++ = '-';
-    *ptr-- = '\0';
-    while (ptr1 < ptr)
-    {
-        tmp_char = *ptr;
-        *ptr-- = *ptr1;
-        *ptr1++ = tmp_char;
-    }
-    return result;
-}
+//     // Apply negative sign
+//     if (tmp_value < 0)
+//         *ptr++ = '-';
+//     *ptr-- = '\0';
+//     while (ptr1 < ptr)
+//     {
+//         tmp_char = *ptr;
+//         *ptr-- = *ptr1;
+//         *ptr1++ = tmp_char;
+//     }
+//     return result;
+// }
 
 int zero_block_decoder(int *seq, int start_index, int seq_length)
 {
@@ -248,7 +249,7 @@ int split_sample_decoder(int *seq, int k, char *first_sample)
     for (int i = 0; i < BLOCK_SIZE; i++)
     {
         char binary[resolution - k + 1];
-        itoa(msb_dec[i], binary, 2);
+        int_to_binary(msb_dec[i], binary);
         int len = strlen(binary);
         for (int j = 0; j < resolution - k - len; j++)
         {
@@ -296,7 +297,7 @@ int split_sample_decoder(int *seq, int k, char *first_sample)
         for (int j = 0; j < k; j++)
         {
             char binary[2];
-            itoa(lsb_bin[i][j], binary, 2);
+            int_to_binary(lsb_bin[i][j], binary);
             strcat(decoded_bin[i], binary);
         }
     }
@@ -588,7 +589,7 @@ char *no_compression(int *block)
 
     for (int i = 0; i < resolution; i++)
     {
-        itoa(block[i], n_block[i], 2);
+        int_to_binary(block[i], n_block[i]);
         while (strlen(n_block[i]) < resolution)
         {
             memmove(n_block[i] + 1, n_block[i], strlen(n_block[i]) + 1);
@@ -663,7 +664,7 @@ char *zfill(int number, int zero_resolution, char *binary_p)
 {
     int bits = sizeof(number) * 8;
     char binary_arr[bits + 1];
-    binary_result(number, binary_arr);
+    int_to_binary(number, binary_arr);
 
     int actual_resolution = strlen(binary_arr);
 
@@ -684,7 +685,7 @@ char *zfill(int number, int zero_resolution, char *binary_p)
     }
 }
 
-char *binary_result(int value, char *binary_p)
+char *int_to_binary(int value, char *binary_p)
 {
     int bits = sizeof(value) * 8;
     char rev_binary[bits + 1];
@@ -713,44 +714,32 @@ char *binary_result(int value, char *binary_p)
 
     return binary_p;
 }
-// char *binary_result(int value, char *binary_p)
-// {
-//     int index = 0;
-//     int bits = sizeof(value) * 8;
-//     int bit = 0;
-//     for (int i = bits - 1; i >= 0; i--)
-//     {
-//         bit = (value >> i) & (0x01);
-//         binary_p[index] = bit + '0';
-//         index++;
-//     }
-//     return binary_p;
-// }
-int *FS_block(int *block, char *encoded_block, int *index)
+
+char *FS_block(int *block, char *encoded_block, int *index)
 {
     char binary_arr[64];
     char *binary_p = &binary_arr;
     if ((resolution == 3) || (resolution == 4))
     {
-        strcat(encoded_block[*index], "01");
+        strcat(encoded_block, "01");
     }
     else if ((resolution > 4) && (resolution <= 8))
     {
-        strcat(encoded_block[*index], "001");
+        strcat(encoded_block, "001");
     }
     else if ((resolution > 8) && (resolution <= 16))
     {
-        strcat(encoded_block[*index], "0001");
+        strcat(encoded_block, "0001");
     }
     else if ((resolution > 16) && (resolution <= 32))
     {
-        strcat(encoded_block[*index], "00001");
+        strcat(encoded_block, "00001");
     }
     zfill(block[0], 16, binary_p);
     strcat(encoded_block, binary_p);
     for (int i = 1; i < 64; i++)
     {
-        zfill(block[i], block[i] + 1, binary_p);
+        zfill(1, block[i] + 1, binary_p);
         strcat(encoded_block, binary_p);
     }
 }
@@ -821,7 +810,7 @@ char *second_extension(int *sequence)
     for (int i = 0; i < sizeof(encoded) / sizeof(int); i++)
     {
         char *binary = malloc(17 * sizeof(char));
-        itoa(encoded[i], binary, 2);
+        int_to_binary(encoded[i], binary);
         encoded_str = realloc(encoded_str, (sizeof(encoded_str) + 17 * sizeof(char)));
         strcat(encoded_str, binary);
     }
@@ -883,18 +872,18 @@ char *split_sample(int *block, int k, int size, char *encoded, int *index)
 
 int *code_select(int *block, char *encoded_block, int index)
 {
-    int *fs_encoded = FS_block(block, encoded_block, &index);
+    char *fs_encoded = FS_block(block, encoded_block, &index);
 
-    int *smallest = split_sample(block, 1, BLOCK_SIZE, encoded_block, &index);
+    char *smallest = split_sample(block, 1, BLOCK_SIZE, encoded_block, &index);
     for (int i = 1; i < resolution / 2; i++)
     {
-        int *temp = split_sample(block, i, BLOCK_SIZE, smallest, &index);
-        if (sizeof(temp) <= sizeof(smallest))
+        char *temp = split_sample(block, i, BLOCK_SIZE, smallest, &index);
+        if (strlen(temp) <= strlen(smallest))
         {
             smallest = temp;
         }
     }
-    int *split_sample_encoded = smallest;
+    char *split_sample_encoded = smallest;
     int *second_extension_encoded = second_extension(block);
     int *no_compression_encoded = no_compression(block);
 
@@ -914,6 +903,12 @@ int *code_select(int *block, char *encoded_block, int index)
 void FS_element(int zeros, char *fs_element)
 {
     int i = 0;
+    if (0 == zeros)
+    {
+        fs_element[i] = '1';
+        fs_element[i += 1] = '\0';
+        return;
+    }
     for (; i < zeros; i++)
     {
         if (i == (zeros - 1))
@@ -928,7 +923,7 @@ char *zero_block(int *sequence, int length, char *result, char *encoded)
 {
     int zeros = 0;
     int ROS = 4;
-    char optiion_id_arr[64];
+    char optiion_id_arr[100];
     char *option_id = &optiion_id_arr;
     int blocks = length / BLOCK_SIZE;
     int reminder_samples = length % BLOCK_SIZE;
@@ -995,25 +990,26 @@ char *zero_block(int *sequence, int length, char *result, char *encoded)
 
     if (resolution == 1 || resolution == 2)
     {
-        option_id = strtol("000", NULL, 2);
+        strcat(option_id, "000");
     }
     else if (resolution == 3 || resolution == 4)
     {
-        option_id = strtol("0000", NULL, 2);
+        strcat(option_id, "0000");
     }
     else if (resolution > 4 && resolution <= 8)
     {
-        option_id = strtol("00000", NULL, 2);
+        strcat(option_id, "00000");
     }
     else if (resolution > 8 && resolution <= 16)
     {
-        option_id = strtol("000000", NULL, 2);
+        strcat(option_id, "000000");
     }
     else if (resolution > 16 && resolution <= 32)
     {
-        option_id = strtol("0000000", NULL, 2);
+        strcat(option_id, "0000000");
     }
-
+    int len = strlen(option_id);
+    option_id[len + 1] = '\0';
     strcat(result, option_id);
     strcat(result, encoded);
     int j = strlen(result);
@@ -1022,45 +1018,45 @@ char *zero_block(int *sequence, int length, char *result, char *encoded)
     return result;
 }
 
-int *pre_processor(int *block, int len, int *seq_delayed, int *delta)
+int *pre_processor(int *block, int element_size, int *seq_delayed, int *delta)
 {
     int *seq = block;
-    for (int i = 0; i < len; i++)
+    for (int i = 0; i < element_size; i++)
     {
         seq_delayed[i] = (i > 0) ? seq[i - 1] : threshold;
     }
-    int d[BLOCK_SIZE] = {0}, t[BLOCK_SIZE] = {0};
-    for (int i = 0; i < len; i++)
+    int diff[BLOCK_SIZE] = {0}, t[BLOCK_SIZE] = {0};
+    for (int i = 0; i < element_size; i++)
     {
-        d[i] = seq[i] - seq_delayed[i];
+        diff[i] = seq[i] - seq_delayed[i];
     }
 
     int ymax = max_limit;
     int ymin = min_limit;
 
-    for (int i = 0; i < len; i++)
+    for (int i = 0; i < element_size; i++)
     {
         int a = ymax - seq_delayed[i];
         int b = seq_delayed[i] - ymin;
         int T = (a < b) ? a : b;
         t[i] = T;
 
-        if (0 <= d[i] && d[i] <= T)
+        if (0 <= diff[i] && diff[i] <= T)
         {
-            delta[i] = 2 * d[i];
+            delta[i] = 2 * diff[i];
         }
-        else if (-T <= d[i] && d[i] < 0)
+        else if (-T <= diff[i] && diff[i] < 0)
         {
-            delta[i] = 2 * abs(d[i]) - 1;
+            delta[i] = 2 * abs(diff[i]) - 1;
         }
         else
         {
-            delta[i] = T + abs(d[i]);
+            delta[i] = T + abs(diff[i]);
         }
     }
 
     printf("pre processed: ");
-    for (int i = 0; i < len; i++)
+    for (int i = 0; i < element_size; i++)
     {
         printf("%d ", delta[i]);
     }
@@ -1096,26 +1092,18 @@ void breaker(int *sequence, int range, int blocks, int block[blocks][BLOCK_SIZE]
     int sequence_length = range;
     int num_of_blocks = sequence_length / N; // Number of sublists
     int remain_samples = sequence_length % N;
-    if (remain_samples == 0)
+    int sub_block = 0, i = 0;
+
+    for (; sub_block < num_of_blocks; sub_block++, i += N)
     {
-        for (int sub_block = 0, i = 0; sub_block < num_of_blocks; sub_block++, i += N)
+        for (int j = 0; j < N; j++)
         {
-            for (int j = 0; j < N; j++)
-            {
-                block[sub_block][j] = sequence[i + j];
-            }
+            block[sub_block][j] = sequence[i + j];
         }
     }
-    else if (remain_samples > 0)
+
+    if (remain_samples > 0)
     {
-        int i = 0, sub_block = 0;
-        for (; sub_block < num_of_blocks; sub_block++, i += N)
-        {
-            for (int j = 0; j < N; j++)
-            {
-                block[sub_block][j] = sequence[i + j];
-            }
-        }
         for (int k = 0; k < N; k++)
         {
             block[sub_block][k] = '\0';
@@ -1128,13 +1116,12 @@ void breaker(int *sequence, int range, int blocks, int block[blocks][BLOCK_SIZE]
     }
 }
 
-void executor(int *seq_og, int seq_og_size, int blocks, int blocked_sequence[blocks][BLOCK_SIZE], int *delta, int *e)
+void executor(int *seq_og, int seq_og_size, int blocks, int blocks_sequence[blocks][BLOCK_SIZE], int *pre_processed_block, int *e)
 {
-    // int *encoded_seq = NULL;
     int zero_block_seq[seq_og_size], encoded_seq[seq_og_size];
     int zero_block_seq_len = 0;
     int N = BLOCK_SIZE;
-    breaker(seq_og, seq_og_size / sizeof(seq_og[0]), blocks, blocked_sequence);
+    breaker(seq_og, seq_og_size / sizeof(seq_og[0]), blocks, blocks_sequence);
     int seq_delayed[BLOCK_SIZE];
     int sub_block = 0;
     int remain_samples = (seq_og_size / sizeof(seq_og[0])) % N;
@@ -1143,10 +1130,10 @@ void executor(int *seq_og, int seq_og_size, int blocks, int blocked_sequence[blo
     for (; sub_block < blocks; sub_block++)
     {
         int zero_flag = 0, non_zero_flag = 0;
-        pre_processor(blocked_sequence[sub_block], BLOCK_SIZE, seq_delayed, delta);
+        pre_processor(blocks_sequence[sub_block], BLOCK_SIZE, seq_delayed, pre_processed_block);
         for (int i = 0; i < BLOCK_SIZE; i++)
         {
-            if (delta[i] != 0)
+            if (pre_processed_block[i] != 0)
             {
                 non_zero_flag += 1;
                 break;
@@ -1167,7 +1154,7 @@ void executor(int *seq_og, int seq_og_size, int blocks, int blocked_sequence[blo
             int j = 0;
             for (; j < BLOCK_SIZE; j++)
             {
-                encoded_seq[encoded_seq_index] = delta[j];
+                encoded_seq[encoded_seq_index] = pre_processed_block[j];
                 encoded_seq_index += 1;
             }
             nonzero_block_count++;
@@ -1177,7 +1164,7 @@ void executor(int *seq_og, int seq_og_size, int blocks, int blocked_sequence[blo
             int j = 0;
             for (; j < BLOCK_SIZE; j++)
             {
-                zero_block_seq[zero_block_seq_index] = delta[j];
+                zero_block_seq[zero_block_seq_index] = pre_processed_block[j];
                 zero_block_seq_index += 1;
             }
             zero_block_count++;
@@ -1193,7 +1180,6 @@ void executor(int *seq_og, int seq_og_size, int blocks, int blocked_sequence[blo
         zero_block_count = 0;
         zero_block_seq_index = 0;
     }
-    // char e[4096];
     dec(encoded_seq, e);
     int len_seq = sizeof(seq_og) / sizeof(seq_og[0]);
     int len_e = sizeof(e) / sizeof(e[0]);
@@ -1212,7 +1198,7 @@ int main()
     {
         blocks += 1;
     }
-    int blocked_sequence[blocks][BLOCK_SIZE];
+    int blocks_sequence[blocks][BLOCK_SIZE];
     int sizeof_seq_og = sizeof(seq_og);
     rand_seq_og(9820, 9830, SEQ_OG_SIZE, seq_og);
 
@@ -1220,10 +1206,10 @@ int main()
     {
         for (int j = 0; j < BLOCK_SIZE; j++)
         {
-            blocked_sequence[i][j] = 0;
+            blocks_sequence[i][j] = 0;
         }
     }
-    executor(seq_og, sizeof_seq_og, blocks, blocked_sequence, delta, e);
+    executor(seq_og, sizeof_seq_og, blocks, blocks_sequence, delta, e);
 
     char *s = joiner(e, SEQ_OG_SIZE);
     int s_len = strlen(s);
