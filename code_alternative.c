@@ -39,17 +39,17 @@ void breaker(int *sequence, int range, int blocks, int block[blocks][BLOCK_SIZE]
 int *pre_processor(int *block, int len, int *seq_delayed, int *delta);
 int *rand_seq_og(int min, int max, int range, int *seq_og);
 void FS_element(int zeros, char *fs_element);
-int *code_select(int *block, char *encoded_block, int index);
+int *code_select(int *block, char *encoded_block, int index, int block_size);
 char *split_sample(int *block, int k, int size, char *encoded, int *index);
-char *second_extension(int *sequence);
+char *second_extension(int *sequence, int block_size, char *second_extension_encoded);
 void executor(int *seq_og, int seq_og_size, int blocks, int blocks_sequence[blocks][BLOCK_SIZE], int *delta, int *encoded_seq);
-char *FS_block(int *block, char *encoded_block, int *index);
+char *FS_block(int *block, char *fs_encoded, int *index);
 char *int_to_binary(int value, char *binary_p);
 char *zfill(int number, int zero_resolution, char *binary_p);
 int binary_decimal(char *msb, int len);
-char *no_compression(int *block);
-char *minimum(char *a, char *b);
-int *dec(char *seq, char *e);
+char *no_compression(int *block, char *no_compression);
+char *minimum(char *a, char *b, char *smallest);
+int *dec(char *seq, int *e);
 
 int sum(int *dec_seq, int index, int *total);
 void entropy_decoder(char *seq, int size);
@@ -543,7 +543,7 @@ void entropy_decoder(char *seq, int size)
             break;
     }
 }
-int *dec(char *seq, char *e)
+int *dec(char *seq, int *e)
 {
     int *blocked_seq;
     int *dec_seq;
@@ -565,9 +565,8 @@ int *dec(char *seq, char *e)
     dec_seq[0] = seq_len;
     return dec_seq;
 }
-char *minimum(char *a, char *b)
+char *minimum(char *a, char *b, char *smallest)
 {
-    char *smallest;
     if (strlen(a) <= strlen(b))
     {
         smallest = a;
@@ -578,24 +577,9 @@ char *minimum(char *a, char *b)
     }
     return smallest;
 }
-char *no_compression(int *block)
+char *no_compression(int *block, char *no_compression_encoded)
 {
-    char *option_id = malloc(sizeof(char) * 6);
-    char **n_block = malloc(sizeof(char *) * resolution);
-    for (int i = 0; i < resolution; i++)
-    {
-        n_block[i] = malloc(sizeof(char) * (resolution + 1));
-    }
-
-    for (int i = 0; i < resolution; i++)
-    {
-        int_to_binary(block[i], n_block[i]);
-        while (strlen(n_block[i]) < resolution)
-        {
-            memmove(n_block[i] + 1, n_block[i], strlen(n_block[i]) + 1);
-            n_block[i][0] = '0';
-        }
-    }
+    char option_id[100] = {'\0'};
 
     if (resolution == 1 || resolution == 2)
     {
@@ -617,22 +601,15 @@ char *no_compression(int *block)
     {
         strcpy(option_id, "11111");
     }
-
-    char *n_block_str = malloc(sizeof(char) * (resolution * (resolution + 1) + 6));
-    strcpy(n_block_str, option_id);
-    for (int i = 0; i < resolution; i++)
+    strcat(no_compression_encoded, option_id);
+    char binary_p[64];
+    for (int i = 0; i < 64; i++)
     {
-        strcat(n_block_str, n_block[i]);
+        zfill(block[i], 16, binary_p);
+        strcat(no_compression_encoded, binary_p);
     }
 
-    for (int i = 0; i < resolution; i++)
-    {
-        free(n_block[i]);
-    }
-    free(n_block);
-    free(option_id);
-
-    return n_block_str;
+    return no_compression_encoded;
 }
 
 int binary_decimal(char *msb, int len)
@@ -715,62 +692,85 @@ char *int_to_binary(int value, char *binary_p)
     return binary_p;
 }
 
-char *FS_block(int *block, char *encoded_block, int *index)
+char *FS_block(int *block, char *fs_encoded, int *index)
 {
     char binary_arr[64];
     char *binary_p = &binary_arr;
     if ((resolution == 3) || (resolution == 4))
     {
-        strcat(encoded_block, "01");
+        strcat(fs_encoded, "01");
     }
     else if ((resolution > 4) && (resolution <= 8))
     {
-        strcat(encoded_block, "001");
+        strcat(fs_encoded, "001");
     }
     else if ((resolution > 8) && (resolution <= 16))
     {
-        strcat(encoded_block, "0001");
+        strcat(fs_encoded, "0001");
     }
     else if ((resolution > 16) && (resolution <= 32))
     {
-        strcat(encoded_block, "00001");
+        strcat(fs_encoded, "00001");
     }
     zfill(block[0], 16, binary_p);
-    strcat(encoded_block, binary_p);
+    strcat(fs_encoded, binary_p);
     for (int i = 1; i < 64; i++)
     {
         zfill(1, block[i] + 1, binary_p);
-        strcat(encoded_block, binary_p);
+        strcat(fs_encoded, binary_p);
     }
 }
-char *second_extension(int *sequence)
+char *second_extension(int *sequence, int block_size, char *second_extension_encoded)
 {
-    int *encoded = malloc(sizeof(int));
-    int option_id = 0;
-    sequence = realloc(sequence, (sizeof(sequence) + sizeof(int)));
-    sequence[sizeof(sequence) - 1] = sequence[sizeof(sequence) - 2];
-    printf("len seq %ld\n", sizeof(sequence) / sizeof(int));
-    int **paired_list = malloc((sizeof(sequence) / sizeof(int) - 2) * sizeof(int *));
-    for (int i = 1; i < sizeof(sequence) / sizeof(int) - 1; i += 2)
+    char binary_arr[64];
+    char *binary_p = &binary_arr;
+    char option_id[100];
+    sequence[block_size] = sequence[block_size - 1];
+    int **paired_list = malloc(((block_size - 1) / 2) * sizeof(int *));
+    for (int i = 1; i < block_size; i += 2)
     {
         paired_list[i / 2] = malloc(2 * sizeof(int));
         paired_list[i / 2][0] = sequence[i];
         paired_list[i / 2][1] = sequence[i + 1];
     }
 
+    if (resolution == 1 || resolution == 2)
+    {
+        zfill(1, 2, option_id);
+    }
+    else if (resolution == 3 || resolution == 4)
+    {
+        zfill(1, 3, option_id);
+    }
+    else if (resolution > 4 && resolution <= 8)
+    {
+        zfill(1, 4, option_id);
+    }
+    else if (resolution > 8 && resolution <= 16)
+    {
+        zfill(1, 5, option_id);
+    }
+    else if (resolution > 16 && resolution <= 32)
+    {
+        zfill(1, 6, option_id);
+    }
+    int n = strlen(option_id);
+    strcat(encoded, option_id);
+
+    zfill(sequence, 16, binary_p);
+    strcat(encoded, binary_p);
+
     int gamma = 0;
-    int *gamma_list = malloc((sizeof(sequence) / sizeof(int) - 2) * sizeof(int));
+    int *gamma_list = malloc(((block_size - 1) / 2) * sizeof(int));
     char fs_element[64];
-    for (int i = 0; i < sizeof(sequence) / sizeof(int) - 2; i++)
+    for (int i = 0; i < ((block_size - 1) / 2); i++)
     {
         int *pair = paired_list[i];
-        gamma = 0.5 * (pair[0] + pair[1]) * (pair[0] + pair[1] + 1) + pair[1];
+        gamma = (int)(0.5 * (pair[0] + pair[1]) * (pair[0] + pair[1] + 1) + pair[1]);
         if (gamma + 1 <= 44)
         {
-            encoded = realloc(encoded, (sizeof(encoded) + sizeof(int)));
             FS_element(gamma + 1, fs_element);
-            int data = binary_decimal(fs_element, strlen(fs_element));
-            encoded[sizeof(encoded) / sizeof(int) - 1] = data;
+            strcat(encoded, fs_element);
         }
         else
         {
@@ -780,41 +780,6 @@ char *second_extension(int *sequence)
         gamma_list[i] = gamma;
     }
 
-    if (resolution == 1 || resolution == 2)
-    {
-        option_id = 1;
-    }
-    else if (resolution == 3 || resolution == 4)
-    {
-        option_id = 1;
-    }
-    else if (resolution > 4 && resolution <= 8)
-    {
-        option_id = 1;
-    }
-    else if (resolution > 8 && resolution <= 16)
-    {
-        option_id = 1;
-    }
-    else if (resolution > 16 && resolution <= 32)
-    {
-        option_id = 1;
-    }
-
-    encoded = realloc(encoded, (sizeof(encoded) + sizeof(int)));
-    encoded[sizeof(encoded) / sizeof(int) - 1] = sequence[0];
-    encoded = realloc(encoded, (sizeof(encoded) + sizeof(int)));
-    encoded[sizeof(encoded) / sizeof(int) - 1] = option_id;
-
-    char *encoded_str = malloc(sizeof(char));
-    for (int i = 0; i < sizeof(encoded) / sizeof(int); i++)
-    {
-        char *binary = malloc(17 * sizeof(char));
-        int_to_binary(encoded[i], binary);
-        encoded_str = realloc(encoded_str, (sizeof(encoded_str) + 17 * sizeof(char)));
-        strcat(encoded_str, binary);
-    }
-
     printf("gamma list en: ");
     for (int i = 0; i < sizeof(gamma_list) / sizeof(int); i++)
     {
@@ -822,7 +787,7 @@ char *second_extension(int *sequence)
     }
     printf("\n");
 
-    return encoded_str;
+    return encoded;
 }
 
 char *split_sample(int *block, int k, int size, char *encoded, int *index)
@@ -870,32 +835,36 @@ char *split_sample(int *block, int k, int size, char *encoded, int *index)
     return encoded;
 }
 
-int *code_select(int *block, char *encoded_block, int index)
+int *code_select(int *block, char *encoded_block, int index, int block_size)
 {
-    char *fs_encoded = FS_block(block, encoded_block, &index);
+    char fs_encoded[4096];
+    FS_block(block, fs_encoded, &index);
 
-    char *smallest = split_sample(block, 1, BLOCK_SIZE, encoded_block, &index);
+    char smallest[4096];
+    char temp[4096];
+    split_sample(block, 1, BLOCK_SIZE, smallest, &index);
     for (int i = 1; i < resolution / 2; i++)
     {
-        char *temp = split_sample(block, i, BLOCK_SIZE, smallest, &index);
+        split_sample(block, i, BLOCK_SIZE, temp, &index);
         if (strlen(temp) <= strlen(smallest))
         {
-            smallest = temp;
+            strcat(smallest, temp);
         }
     }
     char *split_sample_encoded = smallest;
-    int *second_extension_encoded = second_extension(block);
-    int *no_compression_encoded = no_compression(block);
+    char second_extension_encoded[4096];
+    second_extension(block, block_size, second_extension_encoded);
+    char no_compression_encoded[4096];
+    no_compression(block, no_compression_encoded);
 
-    if (second_extension_encoded == 0)
+    if (second_extension_encoded == NULL)
     {
-        encoded_block = minimum(
-            minimum(fs_encoded, split_sample_encoded), no_compression_encoded);
+        minimum(
+            minimum(fs_encoded, split_sample_encoded, encoded_block), no_compression_encoded, encoded_block);
     }
     else
     {
-        encoded_block = minimum(minimum(fs_encoded, split_sample_encoded), minimum(
-                                                                               second_extension_encoded, no_compression_encoded));
+        minimum(minimum(fs_encoded, split_sample_encoded, encoded_block), minimum(second_extension_encoded, no_compression_encoded, encoded_block), encoded_block);
     }
     return encoded_block;
 }
@@ -937,8 +906,8 @@ char *zero_block(int *sequence, int length, char *result, char *encoded)
 
     for (int i = 0; i < blocks; i++)
     {
-        int *block;
-        block = block_list[i];
+        int block[4096] = {'\0'};
+        memcpy(block, block_list[i], sizeof(block_list[i]));
         printf("block_list[i]\n");
         int non_zero_block = 0;
         for (int k = 0; k < BLOCK_SIZE; k++)
@@ -972,7 +941,7 @@ char *zero_block(int *sequence, int length, char *result, char *encoded)
             }
             zeros = 0;
             int index = strlen(encoded);
-            code_select(block, encoded, index);
+            code_select(block, encoded, index, BLOCK_SIZE);
         }
     }
 
@@ -1009,7 +978,6 @@ char *zero_block(int *sequence, int length, char *result, char *encoded)
         strcat(option_id, "0000000");
     }
     int len = strlen(option_id);
-    option_id[len + 1] = '\0';
     strcat(result, option_id);
     strcat(result, encoded);
     int j = strlen(result);
@@ -1118,7 +1086,8 @@ void breaker(int *sequence, int range, int blocks, int block[blocks][BLOCK_SIZE]
 
 void executor(int *seq_og, int seq_og_size, int blocks, int blocks_sequence[blocks][BLOCK_SIZE], int *pre_processed_block, int *e)
 {
-    int zero_block_seq[seq_og_size], encoded_seq[seq_og_size];
+    int zero_block_seq[seq_og_size];
+    char encoded_seq[10000];
     int zero_block_seq_len = 0;
     int N = BLOCK_SIZE;
     breaker(seq_og, seq_og_size / sizeof(seq_og[0]), blocks, blocks_sequence);
@@ -1152,11 +1121,10 @@ void executor(int *seq_og, int seq_og_size, int blocks, int blocks_sequence[bloc
                 zero_block_seq_index = 0;
             }
             int j = 0;
-            for (; j < BLOCK_SIZE; j++)
-            {
-                encoded_seq[encoded_seq_index] = pre_processed_block[j];
-                encoded_seq_index += 1;
-            }
+            char encoded[4096] = {'\0'};
+            code_select(pre_processed_block, encoded, encoded_seq_index, BLOCK_SIZE);
+            strcat(encoded_seq, encoded);
+
             nonzero_block_count++;
         }
         else
