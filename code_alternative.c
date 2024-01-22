@@ -4,7 +4,7 @@
 #include <math.h>
 #include <unistd.h>
 #include <time.h>
-#define SEQ_OG_SIZE 1280
+#define SEQ_OG_SIZE 64
 #define BLOCK_SIZE 64
 #define resolution 16
 static int min_limit = 0;
@@ -39,16 +39,16 @@ void breaker(int *sequence, int range, int blocks, int block[blocks][BLOCK_SIZE]
 int *pre_processor(int *block, int len, int *seq_delayed, int *delta);
 int *rand_seq_og(int min, int max, int range, int *seq_og);
 void FS_element(int zeros, char *fs_element);
-int *code_select(int *block, char *encoded_block, int index, int block_size);
-char *split_sample(int *block, int k, int size, char *encoded, int *index);
+char *code_select(int *block, char *encoded_block, int index, int block_size);
+char *split_sample(int *block, int k, int size, char *encoded, int index);
 char *second_extension(int *sequence, int block_size, char *second_extension_encoded);
 void executor(int *seq_og, int seq_og_size, int blocks, int blocks_sequence[blocks][BLOCK_SIZE], int *delta, int *encoded_seq);
-char *FS_block(int *block, char *fs_encoded, int *index);
+char *FS_block(int *block, char *fs_encoded, int index);
 char *int_to_binary(int value, char *binary_p);
 char *zfill(int number, int zero_resolution, char *binary_p);
-int binary_decimal(char *msb, int len);
+int char_binary_to_decimal(char *msb, int len);
 char *no_compression(int *block, char *no_compression);
-char *minimum(char *a, char *b, char *smallest);
+char *minimum(char *a, char *b);
 int *dec(char *seq, int *e);
 
 int sum(int *dec_seq, int index, int *total);
@@ -375,7 +375,7 @@ int *FS_block_decoder(char *seq, int seq_size, char *first_sample)
     }
     int total = 0;
     int current_index = index + sum(dec_seq, index, &total);
-    int dec = binary_decimal(first_sample, strlen(first_sample));
+    int dec = char_binary_to_decimal(first_sample, strlen(first_sample));
     int temp = 0;
     for (int i = 0, j = 0; i < current_index + 1; i++)
     {
@@ -546,36 +546,32 @@ void entropy_decoder(char *seq, int size)
 int *dec(char *seq, int *e)
 {
     int *blocked_seq;
-    int *dec_seq;
     int N = resolution;
     int seq_len = strlen(seq);
     int blocked_seq_len = seq_len / N;
     blocked_seq = (int *)malloc(blocked_seq_len * sizeof(int));
-    dec_seq = (int *)malloc((blocked_seq_len + 1) * sizeof(int));
-
-    for (int i = 0; i < blocked_seq_len; i++)
+    int i = 0;
+    for (; i < blocked_seq_len + 1; i++)
     {
         char block[N + 1];
         strncpy(block, seq + i * N, N);
         block[N] = '\0';
         blocked_seq[i] = strtol(block, NULL, 2);
-        dec_seq[i + 1] = blocked_seq[i];
+        e[i + 1] = blocked_seq[i];
     }
-
-    dec_seq[0] = seq_len;
-    return dec_seq;
+    e[0] = seq_len;
+    return e;
 }
-char *minimum(char *a, char *b, char *smallest)
+char *minimum(char *a, char *b)
 {
     if (strlen(a) <= strlen(b))
     {
-        smallest = a;
+        return a;
     }
     else
     {
-        smallest = b;
+        return b;
     }
-    return smallest;
 }
 char *no_compression(int *block, char *no_compression_encoded)
 {
@@ -608,19 +604,21 @@ char *no_compression(int *block, char *no_compression_encoded)
         zfill(block[i], 16, binary_p);
         strcat(no_compression_encoded, binary_p);
     }
-
     return no_compression_encoded;
 }
 
-int binary_decimal(char *msb, int len)
+int char_binary_to_decimal(char *msb, int len)
 {
-    int dec = 0, bit_dec = 0, i = 0, exponent, base = 2;
-    len = len - 1;
-    for (; len >= 0; len--, i++)
+    int dec = 0, bit_dec = 0, i = 0, exponent = 0, base = 2;
+    // for (int i = 0; i < len; i++)
+    // {
+    //     printf("%c,", msb[i]);
+    // }
+    exponent = len - 1;
+    for (; i < len; i++)
     {
         int result = 1;
-        exponent = len;
-        if (msb[len] == '1')
+        if (msb[i] == '1')
         {
             while (exponent != 0)
             {
@@ -634,6 +632,7 @@ int binary_decimal(char *msb, int len)
         {
             dec = dec + 0;
         }
+        exponent--;
     }
     return dec;
 }
@@ -642,13 +641,11 @@ char *zfill(int number, int zero_resolution, char *binary_p)
     int bits = sizeof(number) * 8;
     char binary_arr[bits + 1];
     int_to_binary(number, binary_arr);
-
     int actual_resolution = strlen(binary_arr);
-
+    char temp_zero[100] = {'\0'};
     if (actual_resolution < zero_resolution)
     {
         int n = zero_resolution - actual_resolution;
-        char temp_zero[n + 1];
         memset(temp_zero, '0', n);
         temp_zero[n] = '\0';
         strcat(temp_zero, binary_arr);
@@ -688,14 +685,12 @@ char *int_to_binary(int value, char *binary_p)
     }
 
     binary_p[i] = '\0';
-
     return binary_p;
 }
 
-char *FS_block(int *block, char *fs_encoded, int *index)
+char *FS_block(int *block, char *fs_encoded, int index)
 {
-    char binary_arr[64];
-    char *binary_p = &binary_arr;
+    char binary_p[64] = {'\0'};
     if ((resolution == 3) || (resolution == 4))
     {
         strcat(fs_encoded, "01");
@@ -716,14 +711,16 @@ char *FS_block(int *block, char *fs_encoded, int *index)
     strcat(fs_encoded, binary_p);
     for (int i = 1; i < 64; i++)
     {
+        memset(binary_p, '\0', sizeof(binary_p));
         zfill(1, block[i] + 1, binary_p);
         strcat(fs_encoded, binary_p);
+        memset(binary_p, '\0', sizeof(binary_p));
     }
+    printf("\n fs encoded=%s\n", fs_encoded);
 }
 char *second_extension(int *sequence, int block_size, char *second_extension_encoded)
 {
-    char binary_arr[64];
-    char *binary_p = &binary_arr;
+    char binary_p[64];
     char option_id[100];
     sequence[block_size] = sequence[block_size - 1];
     int **paired_list = malloc(((block_size - 1) / 2) * sizeof(int *));
@@ -755,22 +752,22 @@ char *second_extension(int *sequence, int block_size, char *second_extension_enc
         zfill(1, 6, option_id);
     }
     int n = strlen(option_id);
-    strcat(encoded, option_id);
+    strcat(second_extension_encoded, option_id);
 
-    zfill(sequence, 16, binary_p);
-    strcat(encoded, binary_p);
+    zfill(sequence[0], 16, binary_p);
+    strcat(second_extension_encoded, binary_p);
 
-    int gamma = 0;
-    int *gamma_list = malloc(((block_size - 1) / 2) * sizeof(int));
+    float gamma = 0;
+    float *gamma_list = malloc(((block_size - 1) / 2) * sizeof(float));
     char fs_element[64];
     for (int i = 0; i < ((block_size - 1) / 2); i++)
     {
         int *pair = paired_list[i];
-        gamma = (int)(0.5 * (pair[0] + pair[1]) * (pair[0] + pair[1] + 1) + pair[1]);
+        gamma = (0.5 * (pair[0] + pair[1]) * (pair[0] + pair[1] + 1) + pair[1]);
         if (gamma + 1 <= 44)
         {
             FS_element(gamma + 1, fs_element);
-            strcat(encoded, fs_element);
+            strcat(second_extension_encoded, fs_element);
         }
         else
         {
@@ -781,33 +778,40 @@ char *second_extension(int *sequence, int block_size, char *second_extension_enc
     }
 
     printf("gamma list en: ");
-    for (int i = 0; i < sizeof(gamma_list) / sizeof(int); i++)
+    for (int i = 0; i < ((block_size - 1) / 2); i++)
     {
-        printf("%d ", gamma_list[i]);
+        printf("%f ", gamma_list[i]);
     }
     printf("\n");
-
-    return encoded;
+    printf("\nsec ext=%s\n", second_extension_encoded);
+    return second_extension_encoded;
 }
 
-char *split_sample(int *block, int k, int size, char *encoded, int *index)
+char *split_sample(int *block, int k, int size, char *encoded, int index)
 {
-    char option_id[64] = {0}, block_array[64] = {0};
+    char option_id[64], block_array[64];
     char msb[64], lsb[16];
     char binary[64];
     int n = resolution;
     char msb_fs[64];
+    char msb_bunch[4096], lsb_bunch[4096];
+    memset(msb_bunch, '\0', sizeof(msb_bunch));
+    memset(lsb_bunch, '\0', sizeof(lsb_bunch));
     for (int sample = 1; sample < size; sample++)
     {
         int msb_dec = 0;
+        memset(binary, '\0', sizeof(binary));
         zfill(block[sample], n, binary);
+        memset(lsb, '\0', sizeof(lsb));
+        memset(msb, '\0', sizeof(msb));
         memcpy(lsb, (void *)&binary[n - k], n - (n - k));
         lsb[n - (n - k) + 1] = '\0';
         memcpy(msb, (void *)&binary[0], (n - k));
         msb[(n - k) + 1] = '\0';
-        msb_dec = binary_decimal(msb, strlen(msb));
+        msb_dec = char_binary_to_decimal(msb, strlen(msb));
         FS_element(msb_dec + 1, msb_fs);
-        strcat(msb, msb_fs);
+        strcat(msb_bunch, msb_fs);
+        strcat(lsb_bunch, lsb);
     }
     if ((resolution == 3) || (resolution == 4))
     {
@@ -825,27 +829,28 @@ char *split_sample(int *block, int k, int size, char *encoded, int *index)
     {
         zfill(k + 1, 5, option_id);
     }
+    memset(encoded, '\0', sizeof(encoded));
     strcat(encoded, option_id);
     memset(block_array, '\0', sizeof(block_array));
     zfill(block[0], 16, block_array);
     strcat(encoded, block_array);
-    strcat(encoded, msb);
-    strcat(encoded, lsb);
-
+    strcat(encoded, msb_bunch);
+    strcat(encoded, lsb_bunch);
     return encoded;
 }
 
-int *code_select(int *block, char *encoded_block, int index, int block_size)
+char *code_select(int *block, char *encoded_block, int index, int block_size)
 {
-    char fs_encoded[4096];
-    FS_block(block, fs_encoded, &index);
-
     char smallest[4096];
     char temp[4096];
-    split_sample(block, 1, BLOCK_SIZE, smallest, &index);
+    char fs_encoded[4096];
+    char encoded_smallest[4096];
+    char *smallest_encoded = encoded_smallest;
+    FS_block(block, fs_encoded, index);
+    split_sample(block, 1, BLOCK_SIZE, smallest, index);
     for (int i = 1; i < resolution / 2; i++)
     {
-        split_sample(block, i, BLOCK_SIZE, temp, &index);
+        split_sample(block, i, BLOCK_SIZE, temp, index);
         if (strlen(temp) <= strlen(smallest))
         {
             strcat(smallest, temp);
@@ -859,13 +864,17 @@ int *code_select(int *block, char *encoded_block, int index, int block_size)
 
     if (second_extension_encoded == NULL)
     {
-        minimum(
-            minimum(fs_encoded, split_sample_encoded, encoded_block), no_compression_encoded, encoded_block);
+        printf("\n in if block\n");
+        smallest_encoded = minimum(
+            minimum(fs_encoded, split_sample_encoded), no_compression_encoded);
     }
     else
     {
-        minimum(minimum(fs_encoded, split_sample_encoded, encoded_block), minimum(second_extension_encoded, no_compression_encoded, encoded_block), encoded_block);
+        printf("\nin else block\n");
+        smallest_encoded = minimum(minimum(fs_encoded, split_sample_encoded), minimum(second_extension_encoded, no_compression_encoded));
     }
+    strcat(encoded_block, smallest_encoded);
+    printf("\nend code_select=%s\n", encoded_block);
     return encoded_block;
 }
 
@@ -892,8 +901,7 @@ char *zero_block(int *sequence, int length, char *result, char *encoded)
 {
     int zeros = 0;
     int ROS = 4;
-    char optiion_id_arr[100];
-    char *option_id = &optiion_id_arr;
+    char option_id[100];
     int blocks = length / BLOCK_SIZE;
     int reminder_samples = length % BLOCK_SIZE;
     if (reminder_samples > 0)
@@ -908,11 +916,9 @@ char *zero_block(int *sequence, int length, char *result, char *encoded)
     {
         int block[4096] = {'\0'};
         memcpy(block, block_list[i], sizeof(block_list[i]));
-        printf("block_list[i]\n");
         int non_zero_block = 0;
         for (int k = 0; k < BLOCK_SIZE; k++)
         {
-            printf("%d,", block[k]);
             if (0 != block[i])
             {
                 non_zero_block++;
@@ -923,11 +929,9 @@ char *zero_block(int *sequence, int length, char *result, char *encoded)
         if (!non_zero_block)
         {
             zeros += 1;
-            printf("%d,", zeros);
         }
         else
         {
-            printf("\nnon zero block count=%d\n", non_zero_block);
             if (0 != zeros)
             {
                 if (zeros <= ROS)
@@ -1029,7 +1033,7 @@ int *pre_processor(int *block, int element_size, int *seq_delayed, int *delta)
         printf("%d ", delta[i]);
     }
     printf("\n");
-
+    printf("pre processor done\n");
     return delta;
 }
 
@@ -1067,6 +1071,7 @@ void breaker(int *sequence, int range, int blocks, int block[blocks][BLOCK_SIZE]
         for (int j = 0; j < N; j++)
         {
             block[sub_block][j] = sequence[i + j];
+            printf("%d,", block[sub_block][j]);
         }
     }
 
@@ -1112,7 +1117,6 @@ void executor(int *seq_og, int seq_og_size, int blocks, int blocks_sequence[bloc
         {
             if (zero_block_count != 0)
             {
-                printf("zero block count block called\n");
                 char encoded[4096];
                 char result[4096];
                 zero_block(zero_block_seq, zero_block_seq_index, &result[0], &encoded[0]);
@@ -1122,7 +1126,9 @@ void executor(int *seq_og, int seq_og_size, int blocks, int blocks_sequence[bloc
             }
             int j = 0;
             char encoded[4096] = {'\0'};
+            printf("in non zero flag before code_select fun\n");
             code_select(pre_processed_block, encoded, encoded_seq_index, BLOCK_SIZE);
+            printf("\nafter code select\n");
             strcat(encoded_seq, encoded);
 
             nonzero_block_count++;
@@ -1148,6 +1154,7 @@ void executor(int *seq_og, int seq_og_size, int blocks, int blocks_sequence[bloc
         zero_block_count = 0;
         zero_block_seq_index = 0;
     }
+    printf("\nencoded_seq before dec call=%s\n", encoded_seq);
     dec(encoded_seq, e);
     int len_seq = sizeof(seq_og) / sizeof(seq_og[0]);
     int len_e = sizeof(e) / sizeof(e[0]);
@@ -1159,7 +1166,8 @@ int main()
 {
     int seq_og[SEQ_OG_SIZE] = {0};
     int delta[BLOCK_SIZE] = {0};
-    int e[SEQ_OG_SIZE] = {0};
+    int e[4096] = {0};
+    int *e_ptr = &e[0];
     int blocks = SEQ_OG_SIZE / BLOCK_SIZE;
     int remain_samples = SEQ_OG_SIZE % BLOCK_SIZE;
     if (remain_samples > 0)
@@ -1168,7 +1176,11 @@ int main()
     }
     int blocks_sequence[blocks][BLOCK_SIZE];
     int sizeof_seq_og = sizeof(seq_og);
-    rand_seq_og(9820, 9830, SEQ_OG_SIZE, seq_og);
+    // rand_seq_og(9820, 9830, SEQ_OG_SIZE, seq_og);
+    for (int i = 0; i < 64; i++)
+    {
+        seq_og[i] = 1900 + (i * 1);
+    }
 
     for (int i = 0; i < blocks; i++)
     {
@@ -1177,10 +1189,14 @@ int main()
             blocks_sequence[i][j] = 0;
         }
     }
-    executor(seq_og, sizeof_seq_og, blocks, blocks_sequence, delta, e);
-
-    char *s = joiner(e, SEQ_OG_SIZE);
-    int s_len = strlen(s);
-    entropy_decoder(s, SEQ_OG_SIZE);
+    executor(seq_og, sizeof_seq_og, blocks, blocks_sequence, delta, e_ptr);
+    int i = 0;
+    for (; e_ptr[i] != NULL; i++)
+    {
+        printf("%d,", e_ptr[i]);
+    }
+    // char *s = joiner(e, SEQ_OG_SIZE);
+    // int s_len = strlen(s);
+    // entropy_decoder(s, SEQ_OG_SIZE);
     return 0;
 }
