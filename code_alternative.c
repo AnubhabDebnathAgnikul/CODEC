@@ -1156,10 +1156,6 @@ void executor(int *seq_og, int seq_og_size, int blocks, int blocks_sequence[bloc
     }
     printf("\nencoded_seq before dec call=%s\n", encoded_seq);
     dec(encoded_seq, e);
-    int len_seq = sizeof(seq_og) / sizeof(seq_og[0]);
-    int len_e = sizeof(e) / sizeof(e[0]);
-    float c_ratio = len_seq / len_e;
-    printf("\nnonzero_block_count=%d zero_block_count=%d\n", nonzero_block_count, zero_block_count);
 }
 
 int main()
@@ -1190,11 +1186,19 @@ int main()
         }
     }
     executor(seq_og, sizeof_seq_og, blocks, blocks_sequence, delta, e_ptr);
-    int i = 0;
-    for (; e_ptr[i] != NULL; i++)
+    printf("\n");
+    int e_size = 0;
+    for (int m = 0; e[m] != NULL; m++)
     {
-        printf("%d,", e_ptr[i]);
+        printf("%d,", e[m]);
+        e_size += 1;
     }
+    printf("\n");
+    int len_seq = sizeof(seq_og) / sizeof(seq_og[0]);
+    int len_e = e_size;
+    float c_ratio = len_seq / len_e;
+    printf("\nlen_seq=%d,len_e=%d,c_ratio=%f\n", len_seq, len_e, c_ratio);
+
     // char *s = joiner(e, SEQ_OG_SIZE);
     // int s_len = strlen(s);
     // entropy_decoder(s, SEQ_OG_SIZE);
