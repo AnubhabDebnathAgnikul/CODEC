@@ -4,7 +4,7 @@
 #include <math.h>
 #include <unistd.h>
 #include <time.h>
-#define SEQ_OG_SIZE 64
+#define SEQ_OG_SIZE 128
 #define BLOCK_SIZE 64
 #define resolution 16
 static int min_limit = 0;
@@ -13,7 +13,7 @@ static int threshold = 0;
 
 char id_lut[17][50] = {0};
 char k_id[13][10];
-int decoded_seq[SEQ_OG_SIZE];
+static int decoded_seq[SEQ_OG_SIZE];
 static int decoded_index = 0;
 
 char zero_block_id[] = "00000";
@@ -92,10 +92,10 @@ char *joiner(int *seq, int seq_size, char *s)
 
 int zero_block_decoder(char *seq, int start_index, int seq_length)
 {
+    printf("\nin zero block decoder\n");
     int zeros = 0;
     int all_zero_blocks = 0;
     int ROS = 4;
-    int decoded_seq[1000];
     int decoded_all_zero_block[1000];
     int current_index;
 
@@ -122,7 +122,7 @@ int zero_block_decoder(char *seq, int start_index, int seq_length)
     {
         decoded_all_zero_block[i] = 0;
         decoded_seq[decoded_index++] = decoded_all_zero_block[i];
-        // printf("\nzero block decoder called decoded_index=%d\n", decoded_index);
+        printf("\nzero block decoder called decoded_index=%d\n", decoded_index);
     }
 
     current_index = zeros + 1;
@@ -199,13 +199,13 @@ int second_extension_decoder(char *seq, char *first_sample)
     printf("delta %ls\n", delta);
     decoded_seq[decoded_index++] = decimal_value;
     printf("\nsecond extention decoder called decoded_index=%d\n", decoded_index);
-    for (int y = 0; y < sizeof(gamma_list) / sizeof(gamma_list[0]); y++)
+    for (int y = 0; y < (fs_index + 1); y++)
     {
         decoded_seq[decoded_index++] = delta[y];
         printf("\nsecond extention decoder called decoded_index=%d\n", decoded_index);
     }
     int total = 0;
-    int current_index = sizeof(gamma_list) / sizeof(gamma_list[0]) + sum(gamma_list, index, total);
+    int current_index = (fs_index + 1) + sum(gamma_list, index, total);
     return (current_index + 5 + resolution);
 }
 
@@ -254,15 +254,21 @@ int split_sample_decoder(char *seq, int k, char *first_sample)
         strncat(decoded_bin[i], lsb_bin[i], strlen(lsb_bin[i]));
     }
     int decoded_dec[BLOCK_SIZE];
-    for (int i = 0; i < BLOCK_SIZE; i++)
+    printf("\ndecoded_dec:");
+    for (int i = 0; i < BLOCK_SIZE - 1; i++)
     {
         decoded_dec[i] = strtol(decoded_bin[i], NULL, 2);
-        printf("decoded_dec=%d,", decoded_dec[i]);
+        printf("%d,", decoded_dec[i]);
     }
-    decoded_seq[index++] = strtol(first_sample, NULL, 2);
-    for (int y = 0; y < BLOCK_SIZE; y++)
+    decoded_seq[decoded_index++] = strtol(first_sample, NULL, 2);
+    for (int y = 0; y < BLOCK_SIZE - 1; y++)
     {
-        decoded_seq[index++] = decoded_dec[y];
+        decoded_seq[decoded_index++] = decoded_dec[y];
+    }
+    printf("\ndecoded_seq:");
+    for (int i = 0; i < decoded_index; i++)
+    {
+        printf("%d,", decoded_seq[i]);
     }
     current_index += k * (BLOCK_SIZE - 1);
     return current_index + resolution + 4;
@@ -289,7 +295,7 @@ int no_compression_decoder(char *seq)
     for (i = 0; i < num_blocks; i++)
     {
         decoded_seq[decoded_index++] = sampled_dec[i];
-        // printf("\nsplit sample decoder called decoded_index=%d\n", decoded_index);
+        printf("\nsplit sample decoder called decoded_index=%d\n", decoded_index);
     }
 
     result = num_samples + 4;
@@ -323,7 +329,7 @@ int FS_block_decoder(char *seq, int seq_size, char *first_sample)
     fs_index = FS_decoder(seq, BLOCK_SIZE, seq_size, dec_seq, fs_index, 4096);
     printf("\nfs_index=%d", fs_index);
     int size = 0;
-    for (int i = 0; dec_seq[i] != NULL; i++)
+    for (int i = 0; i < (fs_index + 1); i++)
     {
         printf("%d,", dec_seq[i]);
         zfill(dec_seq[i], resolution, binary_p);
@@ -336,18 +342,18 @@ int FS_block_decoder(char *seq, int seq_size, char *first_sample)
     // printf("\nfs block decoder current index=%d\n", current_index);
     int dec = char_binary_to_decimal(first_sample, strlen(first_sample));
     int temp = 0;
-    // printf("\ndec=%d\n", dec);
-    for (int i = 0, j = 0; i < size + 1; i++)
+    printf("\ndec=%d\n", dec);
+    for (int i = 0, j = 0; i < (fs_index + 1); i++)
     {
         if (i == 0)
         {
             decoded_seq[decoded_index++] = dec;
-            // printf("\nfs block decoder called decoded_index=%d\n", decoded_index);
+            printf("\nfs block decoder called decoded_index=%d\n", decoded_index);
         }
         else
         {
             decoded_seq[decoded_index++] = dec_seq[i - 1];
-            // printf("\nfs block decoder called decoded_index=%d\n", decoded_index);
+            printf("\nfs block decoder called decoded_index=%d\n", decoded_index);
         }
     }
     return (current_index + resolution + 4);
@@ -369,8 +375,8 @@ int FS_decoder(char *seq, int block_size_t, int seq_size, int *dec_seq, int dec_
             ones += 1;
             dec_seq[j] = zeros;
             dec_seq_index = j;
-            printf("\ndec_seq[%d]=%d,", j, dec_seq[j]);
-            printf("dec_seq_index=%d\n", dec_seq_index);
+            // printf("\ndec_seq[%d]=%d,", j, dec_seq[j]);
+            // printf("dec_seq_index=%d\n", dec_seq_index);
             j++;
             zeros = 0;
             if (ones == block_size_t - 1)
@@ -526,6 +532,7 @@ int *dec(char *seq, int *e)
     int blocked_seq_len = seq_len / N;
     int blocked_seq[blocked_seq_len];
     int i = 0;
+    e[0] = seq_len;
     for (; i < blocked_seq_len + 1; i++)
     {
         char block[N + 1];
@@ -534,19 +541,18 @@ int *dec(char *seq, int *e)
         blocked_seq[i] = strtol(block, NULL, 2);
         e[i + 1] = blocked_seq[i];
     }
-    e[0] = seq_len;
     return e;
 }
 char *minimum(char *a, char *b)
 {
     if (strlen(a) <= strlen(b))
     {
-        printf("\nsmall:%s\n", a);
+        // printf("\nsmall:%s\n", a);
         return a;
     }
     else
     {
-        printf("\nsmall:%s\n", b);
+        // printf("\nsmall:%s\n", b);
         return b;
     }
 }
@@ -677,7 +683,7 @@ char *int_to_binary(int value, char *binary_p)
 
 char *FS_block(int *block, char *fs_encoded, int index)
 {
-    char binary_p[64] = {'\0'};
+    char binary_p[BLOCK_SIZE] = {'\0'};
     memset(fs_encoded, '\0', sizeof(fs_encoded));
     if ((resolution == 3) || (resolution == 4))
     {
@@ -697,7 +703,7 @@ char *FS_block(int *block, char *fs_encoded, int index)
     }
     zfill(block[0], 16, binary_p);
     strcat(fs_encoded, binary_p);
-    for (int i = 1; i < 64; i++)
+    for (int i = 1; i < BLOCK_SIZE; i++)
     {
         memset(binary_p, '\0', sizeof(binary_p));
         zfill(1, block[i] + 1, binary_p);
@@ -762,7 +768,7 @@ char *second_extension(int *sequence, int block_size, char *second_extension_enc
             second_extension_encoded[0] = '\0';
             if (second_extension_encoded == '\0')
             {
-                printf("\nmemset cleare\n");
+                printf("\nmemset clear\n");
             }
             printf("not executing second extension\n");
             return 0;
@@ -837,7 +843,7 @@ char *split_sample(int *block, int k, int size, char *encoded, int index)
     memset(block_array, '\0', sizeof(block_array));
     strcat(encoded, msb_bunch);
     strcat(encoded, lsb_bunch);
-    printf("\nsplit sample:%s\n", encoded);
+    // printf("\nsplit sample:%s\n", encoded);
     printf("\nstr len=%ld\n", strlen(encoded));
     return encoded;
 }
@@ -1234,7 +1240,7 @@ int main()
     printf("\ns_len=%d\n", s_len);
     printf("\ndecoder bin=%s\n", s);
     entropy_decoder(s, SEQ_OG_SIZE);
-    printf("\ndecoded_seq=%d\n", decoded_index);
+    printf("\ndecoded_seq index=%d\n", decoded_index);
     for (int i = 0; decoded_seq[i] != NULL; i++)
     {
         printf("%d,", decoded_seq[i]);
