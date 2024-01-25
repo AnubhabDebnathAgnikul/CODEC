@@ -34,6 +34,8 @@ char k12_id[] = "1101";
 char k13_id[] = "1110";
 char no_copression_id[] = "1111";
 
+int *prop(int *seq, int index, int *x);
+
 char *zero_block(int *sequence, int length, char *result, char *encoded);
 void breaker(int *sequence, int range, int blocks, int block[blocks][BLOCK_SIZE]);
 int *pre_processor(int *block, int len, int *seq_delayed, int *delta);
@@ -1175,15 +1177,112 @@ void executor(int *seq_og, int seq_og_size, int blocks, int blocks_sequence[bloc
     printf("\nencoded_seq before dec call=%s\n", encoded_seq);
     dec(encoded_seq, e);
 }
-int *post_processor(int *decoded_seq)
+int *prop(int *seq, int index, int *x)
+{
+    int delta = 0;
+    int y[index];
+    // for (int i = 0; i < index; i++)
+    // {
+    y[0] = threshold;
+    // }
+    for (int i = 0; i < index; i++)
+    {
+        delta = seq[i] + y[i];
+        y[i + 1] = delta;
+        printf("\nseq[%d]=%d,y[%d]=%d,delta=%d\n", i, seq[i], i, y[i + 1], delta);
+    }
+    memset(x, 0, (index) * (sizeof(int)));
+    for (int i = 0, j = 2; j < index + 1; i++, j++)
+    {
+        x[i] = y[j];
+        printf("x[%d]=%d,", i, x[i]);
+    }
+    if (index > 1)
+    {
+        printf("\n index>1\n");
+        return x;
+    }
+    else
+    {
+        return NULL;
+    }
+}
+
+int *post_processor(int *seq)
 {
     int x[BLOCK_SIZE] = {0};
     int xmax = max_limit;
     int xmin = min_limit;
-    int delta[BLOCK_SIZE] = {0};
+    int delta[BLOCK_SIZE + 1] = {0};
+    x[0] = 0;
+    delta[0] = 0;
+    int theta = 0, a = 0, b = 0, di = 0, index = 1;
     for (int i = 0; i < BLOCK_SIZE; i++)
     {
+        printf("=================================");
+        index += 1;
+        if (i == 0)
+        {
+            a = x[0] - xmin;
+            b = xmax - x[0];
+        }
+        else
+        {
+            a = x[i - 1] - xmin;
+            b = xmax - x[i - 1];
+        }
+        theta = (a < b) ? a : b;
+        printf("\na=%d,b=%d,theta=%d,", a, b, theta);
+        if (seq[i] <= 2 * theta)
+        {
+            printf("\n1\n");
+            if (seq[i] % 2 == 0)
+            {
+                printf("\n1,seq[%d]=%d,theta=%d\n", i, seq[i], theta);
+                di = seq[i] / 2;
+            }
+            else
+            {
+                printf("\n2,seq[%d]=%d,theta=%d\n", i, seq[i], theta);
+                di = -(seq[i] + 1) / 2;
+            }
+            delta[i + 1] = di;
+        }
+        else if (theta == a || theta == b)
+        {
+            if (theta == a)
+            {
+                printf("\n3,theta=%d,a=%d\n", theta, a);
+                di = seq[i] - theta;
+            }
+            else if (theta == b)
+            {
+                printf("\n4,theta=%d,b=%d\n", theta, b);
+                di = theta - seq[i];
+            }
+            delta[i + 1] = di;
+        }
+        else
+        {
+            printf("\ntheta or seq[i] not match with any data\n");
+        }
+        printf("\n");
+        for (int i = 0; i < index; i++)
+        {
+            printf("%d,", delta[i]);
+        }
+        printf("\nindex=%d\n", index);
+        prop(&delta, index, &x);
+        printf("\n");
+        for (int i = 0; i <= index - 2; i++)
+        {
+            printf("%d,", x[i]);
+        }
+        printf("\n");
+
+        printf("=================================");
     }
+    return x;
 }
 int main()
 {
@@ -1247,9 +1346,17 @@ int main()
     }
     int seq_reconstruct[SEQ_OG_SIZE];
     memset(seq_reconstruct, '\0', sizeof(seq_reconstruct));
-    for (int i = 0; decoded_seq[i] != NULL; i + BLOCK_SIZE)
+    printf("\npost processor\n");
+    int final_decoded_seq[SEQ_OG_SIZE];
+    for (int i = 0; decoded_seq[i] != NULL; i += BLOCK_SIZE)
     {
-        post_processor(&decoded_seq[i]);
+
+        final_decoded_seq[i] = post_processor(&decoded_seq[i]);
+        printf("\ni=%d\n", i);
+    }
+    for (int i = 0; i < SEQ_OG_SIZE; i++)
+    {
+        printf("%d,", final_decoded_seq[i]);
     }
     return 0;
 }
