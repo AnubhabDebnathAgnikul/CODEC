@@ -4,7 +4,7 @@
 #include <math.h>
 #include <unistd.h>
 #include <time.h>
-#define SEQ_OG_SIZE 1280
+#define SEQ_OG_SIZE 640
 #define BLOCK_SIZE 64
 #define resolution 16
 static int min_limit = 0;
@@ -13,6 +13,7 @@ static int threshold = 0;
 
 char id_lut[17][50] = {0};
 char k_id[13][10];
+static int final_decoded_seq[SEQ_OG_SIZE];
 static int decoded_seq[SEQ_OG_SIZE];
 static int decoded_index = 0;
 static int final_decoded_index = 0;
@@ -65,7 +66,7 @@ int zero_block_decoder(char *seq, int start_index, int seq_length);
 
 char *joiner(int *seq, int seq_size, char *s);
 // char *itoa(long int value, char *result, int base);
-int *post_processor(int *decoded_seq, int *X);
+int *post_processor(int *decoded_seq);
 
 char *joiner(int *seq, int seq_size, char *s)
 {
@@ -90,7 +91,7 @@ char *joiner(int *seq, int seq_size, char *s)
         strncat(received_seq, buffer, rem_l);
     }
     strcat(s, received_seq);
-    return s;
+    // return s;
 }
 
 int zero_block_decoder(char *seq, int start_index, int seq_length)
@@ -544,7 +545,7 @@ int *dec(char *seq, int *e)
         blocked_seq[i] = strtol(block, NULL, 2);
         e[i + 1] = blocked_seq[i];
     }
-    return e;
+    // return e;
 }
 char *minimum(char *a, char *b)
 {
@@ -1181,42 +1182,33 @@ void executor(int *seq_og, int seq_og_size, int blocks, int blocks_sequence[bloc
 int *prop(int *seq, int index, int *x)
 {
     int delta = 0;
-    int y[index + 1];
-    for (int i = 0; i < index + 1; i++)
-    {
-        y[i] = threshold;
-    }
+    int *y = (int *)calloc((index + 1), sizeof(int));
+
     for (int i = 0; i < index; i++)
     {
         delta = seq[i] + y[i];
         y[i + 1] = delta;
-        // printf("\nseq[%d]=%d,y[%d]=%d,delta=%d\n", i, seq[i], i, y[i + 1], delta);
     }
-    memset(x, 0, (index) * (sizeof(int)));
+
     int i = 0, j;
     for (j = 2; j < index + 1; i++, j++)
     {
         x[i] = y[j];
-        printf("x[%d]=%d,", i, x[i]);
+        // printf("x[%d]=%d,", i, x[i]);
     }
 
-    // x[i++] = NULL;
-    // x[i] = '\0';
-
+    free(y);
     if (index > 1)
     {
         // printf("\n index>1\n");
         return x;
     }
-    else
-    {
-        return;
-    }
 }
 
-int *post_processor(int *seq, int *X)
+int *post_processor(int *seq)
 {
-    int x[BLOCK_SIZE] = {0};
+    // int x[BLOCK_SIZE + 1] = {0};
+    int *x = (int *)calloc(BLOCK_SIZE + 1, sizeof(int));
     int xmax = max_limit;
     int xmin = min_limit;
     int delta[BLOCK_SIZE + 1] = {0};
@@ -1225,10 +1217,8 @@ int *post_processor(int *seq, int *X)
     int theta = 0, a = 0, b = 0, di = 0, index = 1;
     for (int i = 0; i < BLOCK_SIZE; i++)
     {
-        printf("=================================");
+        // printf("\n=================================");
         index += 1;
-        if (index == 4)
-            pause();
         if (i == 0)
         {
             a = x[0] - xmin;
@@ -1240,7 +1230,8 @@ int *post_processor(int *seq, int *X)
             b = xmax - x[i - 1];
         }
         theta = (a < b) ? a : b;
-        printf("\na=%d,b=%d,theta=%d,", a, b, theta);
+        // printf("\na=%d,b=%d,theta=%d,", a, b, theta);
+        // printf("\n=================================");
         if (seq[i] <= 2 * theta)
         {
             if (seq[i] % 2 == 0)
@@ -1269,37 +1260,37 @@ int *post_processor(int *seq, int *X)
         {
             printf("\ntheta or seq[i] not match with any data\n");
         }
-        printf("\n");
-        printf("index=%d\n", index);
-        for (int i = 0; i < index; i++)
-        {
-            printf("delta=%d,", delta[i]);
-        }
-        printf("\n%%%%%%%%%%\n");
+        // printf("\n");
+        // printf("index=%d\n", index);
+        // for (int i = 0; i < index; i++)
+        // {
+        //     printf("delta=%d,", delta[i]);
+        // }
+        // printf("\n%%%%%%%%%%\n");
         prop(&delta[0], index, &x[0]);
         // printf("\n");
-        for (int i = 0; i <= index; i++)
+
+        // printf("\n%d\n", x[index - 2]);
+        // X[final_decoded_index] = x[index - 2];
+        final_decoded_seq[final_decoded_index] = x[index - 2];
+        // printf("%d,", final_decoded_index);
+        if (final_decoded_index < SEQ_OG_SIZE - 1)
         {
-            // printf("%d,", x[i]);
+            final_decoded_index++;
         }
-        // printf("\n");
-
-        printf("=================================");
+        // printf("=================================");
     }
-    for (int i = 0; i < index - 1; i++)
-    {
-        X[final_decoded_index] = x[i];
-        printf("f=%d,", X[final_decoded_index]);
-        final_decoded_index++;
-    }
-
-    return X;
+    free(x);
+    // printf("\nfinalindex=%d\n", final_decoded_index);
+    // return X;
 }
 int main()
 {
     int seq_og[SEQ_OG_SIZE] = {0};
-    int delta[BLOCK_SIZE] = {0};
+    // int delta[BLOCK_SIZE] = {0};
+    int *delta = (int *)malloc(BLOCK_SIZE * sizeof(int));
     int e[4096] = {0};
+    // int *e = (int *)malloc(BLOCK_SIZE * sizeof(int));
     int *e_ptr = &e[0];
     int blocks = SEQ_OG_SIZE / BLOCK_SIZE;
     int remain_samples = SEQ_OG_SIZE % BLOCK_SIZE;
@@ -1309,7 +1300,6 @@ int main()
     }
     int blocks_sequence[blocks][BLOCK_SIZE];
     int sizeof_seq_og = sizeof(seq_og);
-    // rand_seq_og(9820, 9830, SEQ_OG_SIZE, seq_og);
     // printf("before for loop\n");
     for (int i = 0; i < SEQ_OG_SIZE; i++)
     {
@@ -1332,6 +1322,7 @@ int main()
     diff = tnsec2.tv_nsec - tnsec1.tv_nsec;
     printf("\ndiff time in nano sec=%ld\n", diff);
     printf("\n");
+    free(delta);
     int e_size = 0;
     printf("\n e array:");
     for (int m = 0; e[m] != NULL; m++)
@@ -1351,25 +1342,26 @@ int main()
     // printf("\ndecoder bin=%s\n", s);
     entropy_decoder(s, SEQ_OG_SIZE);
     // printf("\ndecoded_seq index=%d\n", decoded_index);
+    memset(s, '\0', sizeof(s));
     for (int i = 0; i < decoded_index; i++)
     {
         // printf("%d,", decoded_seq[i]);
     }
-    int seq_reconstruct[SEQ_OG_SIZE];
-    memset(seq_reconstruct, '\0', sizeof(seq_reconstruct));
+
     printf("\npost processor\n");
-    int final_decoded_seq[SEQ_OG_SIZE];
+    // int final_decoded_seq[SEQ_OG_SIZE];
     for (int i = 0; i < decoded_index; i += BLOCK_SIZE)
     {
 
-        // final_decoded_seq[i] = post_processor(&decoded_seq[i],&final_decoded_seq[i]);
-        post_processor(&decoded_seq[i], &final_decoded_seq[0]);
-
         printf("\ni=%d\n", i);
+        post_processor(&decoded_seq[i]);
+        // post_processor(&decoded_seq[i], &final_decoded_seq);
     }
+    printf("\n=========== after post processor=========\n");
     for (int i = 0; i < SEQ_OG_SIZE; i++)
     {
         printf("%d,", final_decoded_seq[i]);
     }
+    printf("final decoded seq done\n");
     return 0;
 }
