@@ -1,10 +1,10 @@
 #include "compressor_decompressor.h"
-extern int decoded_index;
-extern int final_decoded_index;
-char id_lut[17][50] = {0};
-char k_id[13][10];
 extern int final_decoded_seq[SEQ_OG_SIZE];
 extern int decoded_seq[SEQ_OG_SIZE];
+int final_decoded_index;
+int decoded_index;
+char id_lut[17][50] = {0};
+char k_id[13][10];
 
 char zero_block_id[] = "00000";
 char second_extension_id[] = "00001";
@@ -166,7 +166,9 @@ int FS_block_decoder(char *seq, int seq_size, char *first_sample)
 {
     printf("\nin fs block decoder\n");
     // printf("\n%s\n", first_sample);
-    int dec_seq[4096] = {0};
+    int I = strlen(seq);
+    int dec_seq[I];
+    memset(dec_seq, 0, sizeof(dec_seq));
     int temp_dec_seq;
     int i = 0;
     // printf("\nseq_len=%ld\n", strlen(seq));
@@ -177,7 +179,7 @@ int FS_block_decoder(char *seq, int seq_size, char *first_sample)
     // printf("\nmsc_dec:");
     char binary_p[64] = {'\0'};
     int fs_index = 0, index = 0;
-    fs_index = FS_decoder(seq, BLOCK_SIZE, seq_size, dec_seq, fs_index, 4096);
+    fs_index = FS_decoder(seq, BLOCK_SIZE, seq_size, dec_seq, fs_index, I);
     printf("\nfs_index=%d", fs_index);
     int size = 0;
     for (int i = 0; i < (fs_index + 1); i++)

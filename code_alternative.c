@@ -6,12 +6,10 @@ extern int decoded_seq[SEQ_OG_SIZE];
 char *joiner(int *seq, int seq_size, char *s)
 {
     int l = seq[0];
-    // printf("\n%d\n", l);
-    char received_seq[l];
+    char received_seq[l + 1];
     memset(received_seq, '\0', sizeof(received_seq));
-    // printf("\n before for loop\n");
     char buffer[33] = {'\0'};
-    for (int i = 1; i < seq_size; ++i)
+    for (int i = 1; i < seq_size; i++)
     {
         int rem_l = l - strlen(received_seq);
         memset(buffer, '\0', sizeof(buffer));
@@ -24,10 +22,9 @@ char *joiner(int *seq, int seq_size, char *s)
         {
             zfill(block, rem_l, buffer);
         }
-        strncat(received_seq, buffer, rem_l);
+        strcat(received_seq, buffer);
     }
     strcat(s, received_seq);
-    // return s;
 }
 
 int *dec(char *seq, int *e)
@@ -106,7 +103,6 @@ int char_binary_to_decimal(char *msb, int len)
     ptr = msb;
     char str[200] = {'\0'};
     int dec = 0, bit_dec = 0, i = 0, exponent = 0, base = 2, result = 1;
-    ;
     // for (int i = 0; i < len; i++)
     // {
     //     printf("ptr[%d]=%c,", i, ptr[i]);
@@ -124,13 +120,14 @@ int char_binary_to_decimal(char *msb, int len)
                 result *= base;
                 --exponent;
             }
-            bit_dec = 1 * result;
-            dec = dec + bit_dec;
+            // bit_dec = 1 * result;
+            // dec = dec + bit_dec;
+            dec = dec + result;
         }
-        else
-        {
-            dec = dec + 0;
-        }
+        // else
+        // {
+        //     dec = dec + 0;
+        // }
         // exponent--;
     }
     // printf("\n dec=%d\n", dec);
@@ -251,8 +248,8 @@ char *second_extension(int *sequence, int block_size, char *second_extension_enc
     {
         zfill(1, 6, option_id);
     }
-    int n = strlen(option_id);
-    memset(second_extension_encoded, '\0', sizeof(second_extension_encoded));
+    // int n = strlen(option_id);
+    memset(second_extension_encoded, '\0', strlen(second_extension_encoded));
     strcat(second_extension_encoded, option_id);
 
     zfill(sequence[0], 16, binary_p);
@@ -273,12 +270,8 @@ char *second_extension(int *sequence, int block_size, char *second_extension_enc
         }
         else
         {
-            memset(second_extension_encoded, '\0', sizeof(second_extension_encoded));
+            memset(second_extension_encoded, '\0', strlen(second_extension_encoded));
             second_extension_encoded[0] = '\0';
-            // if (second_extension_encoded[0] == '\0')
-            // {
-            //     printf("\nmemset clear\n");
-            // }
             // printf("not executing second extension\n");
             return 0;
         }
@@ -360,7 +353,7 @@ char *split_sample(int *block, int k, int size, char *encoded, int index)
 
 char *code_select(int *block, char *encoded_block, int index, int block_size)
 {
-    memset(encoded_block, '\0', sizeof(encoded_block));
+    // memset(encoded_block, '\0', sizeof(encoded_block));
     char smallest[4096] = {'\0'};
     char temp[4096] = {'\0'};
     char fs_encoded[4096] = {'\0'};
@@ -440,7 +433,7 @@ char *zero_block(int *sequence, int length, char *result, char *encoded)
     int encoded_length = 0;
     int non_zero_block = 0;
     int index = strlen(encoded);
-    int block[BLOCK_SIZE] = {'\0'};
+    int block[BLOCK_SIZE + 1] = {'\0'};
     for (int i = 0; i < blocks; i++)
     {
         memset(block, '\0', sizeof(block));
@@ -474,7 +467,7 @@ char *zero_block(int *sequence, int length, char *result, char *encoded)
             }
             zeros = 0;
             index = strlen(encoded);
-            // code_select(block, encoded, index, BLOCK_SIZE);
+            code_select(block, encoded, index, BLOCK_SIZE);
         }
     }
 
@@ -518,10 +511,11 @@ char *zero_block(int *sequence, int length, char *result, char *encoded)
     // printf("\nresult=%s\n", result);
     return result;
 }
-
-int *pre_processor(int *block, int element_size, int *seq_delayed, int *delta)
+// int *pre_processor(int *block, int element_size, int *seq_delayed, int *delta)
+int *pre_processor(int *block, int element_size, int *delta)
 {
     int *seq = block;
+    int *seq_delayed = (int *)malloc(element_size * sizeof(int));
     for (int i = 0; i < element_size; i++)
     {
         seq_delayed[i] = (i > 0) ? seq[i - 1] : THRESHOLD;
@@ -557,12 +551,13 @@ int *pre_processor(int *block, int element_size, int *seq_delayed, int *delta)
     }
 
     // printf("\npre processed: ");
-    for (int i = 0; i < element_size; i++)
+    // for (int i = 0; i < element_size; i++)
     {
         // printf("%d ", delta[i]);
     }
     // printf("\n");
     // printf("pre processor done\n");
+    free(seq_delayed);
     return delta;
 }
 
@@ -618,12 +613,18 @@ void breaker(int *sequence, int range, int blocks, int block[blocks][BLOCK_SIZE]
     }
 }
 
-void executor(int *seq_og, int seq_og_size, int blocks, int blocks_sequence[blocks][BLOCK_SIZE], int *pre_processed_block, int *e)
+// void executor(int *seq_og, int seq_og_size, int blocks, int blocks_sequence[blocks][BLOCK_SIZE], int *pre_processed_block, int *e)
+// void executor(int *seq_og, int seq_og_size, int blocks, int *pre_processed_block, int *e)
+void executor(int *seq_og, int seq_og_size, int blocks, int *e)
 {
+    int *pre_processed_block = (int *)malloc(BLOCK_SIZE * sizeof(int));
+    int blocks_sequence[blocks][BLOCK_SIZE];
+    memset(blocks_sequence, 0, sizeof(blocks_sequence));
     int zero_block_seq[seq_og_size];
     char encoded_seq[10000];
     int zero_block_seq_len = 0;
     int N = BLOCK_SIZE;
+    printf("before breaker\n");
     breaker(seq_og, seq_og_size / sizeof(seq_og[0]), blocks, blocks_sequence);
     int seq_delayed[BLOCK_SIZE];
     int sub_block = 0;
@@ -637,7 +638,8 @@ void executor(int *seq_og, int seq_og_size, int blocks, int blocks_sequence[bloc
     {
         zero_flag = 0, non_zero_flag = 0;
         memset(pre_processed_block, '\0', sizeof(pre_processed_block));
-        pre_processor(blocks_sequence[sub_block], BLOCK_SIZE, seq_delayed, pre_processed_block);
+        pre_processor(blocks_sequence[sub_block], BLOCK_SIZE, pre_processed_block);
+        // pre_processor(blocks_sequence[sub_block], BLOCK_SIZE, seq_delayed, pre_processed_block);
         for (int i = 0; i < BLOCK_SIZE; i++)
         {
             if (pre_processed_block[i] != 0)
@@ -661,7 +663,7 @@ void executor(int *seq_og, int seq_og_size, int blocks, int blocks_sequence[bloc
             int j = 0;
             memset(encoded, '\0', sizeof(encoded));
             // printf("in non zero flag before code_select fun\n");
-            // code_select(pre_processed_block, encoded, encoded_seq_index, BLOCK_SIZE);
+            code_select(pre_processed_block, encoded, encoded_seq_index, BLOCK_SIZE);
             // printf("\nafter code select\n");
             strcat(encoded_seq, encoded);
 
@@ -690,6 +692,7 @@ void executor(int *seq_og, int seq_og_size, int blocks, int blocks_sequence[bloc
     }
     // printf("\nencoded_seq before dec call=%s\n", encoded_seq);
     dec(encoded_seq, e);
+    free(pre_processed_block);
 }
 int main()
 {
@@ -707,13 +710,13 @@ int main()
     }
     int blocks_sequence[blocks][BLOCK_SIZE];
     int sizeof_seq_og = sizeof(seq_og);
-    // printf("before for loop\n");
+    printf("before for loop\n");
     for (int i = 0; i < SEQ_OG_SIZE; i++)
     {
         seq_og[i] = 1900 + (i * 10);
-        // printf("%d,", seq_og[i]);
+        printf("%d,", seq_og[i]);
     }
-    // printf("after for loop\n");
+    printf("after for loop\n");
     for (int i = 0; i < blocks; i++)
     {
         for (int j = 0; j < BLOCK_SIZE; j++)
@@ -724,7 +727,9 @@ int main()
     struct timespec tnsec1, tnsec2;
     long int diff;
     clock_gettime(CLOCK_REALTIME, &tnsec1);
-    executor(seq_og, sizeof_seq_og, blocks, blocks_sequence, delta, e_ptr);
+    executor(seq_og, sizeof_seq_og, blocks, e_ptr);
+    // executor(seq_og, sizeof_seq_og, blocks, delta, e_ptr);
+    // executor(seq_og, sizeof_seq_og, blocks, blocks_sequence, delta, e_ptr);
     clock_gettime(CLOCK_REALTIME, &tnsec2);
     diff = tnsec2.tv_nsec - tnsec1.tv_nsec;
     printf("\ndiff time in nano sec=%ld\n", diff);
@@ -742,14 +747,14 @@ int main()
     int len_e = e_size;
     float c_ratio = (float)len_seq / (float)len_e;
     printf("\nlen_seq=%d,len_e=%d,c_ratio=%f\n", len_seq, len_e, c_ratio);
-    char s[4096] = {'\0'};
-    joiner(e, SEQ_OG_SIZE, s);
+    char *s = (char *)malloc((e[0] + 1) * sizeof(char));
+    joiner(e, e_size, s);
     int s_len = strlen(s);
     // printf("\ns_len=%d\n", s_len);
     // printf("\ndecoder bin=%s\n", s);
     entropy_decoder(s, SEQ_OG_SIZE);
     // printf("\ndecoded_seq index=%d\n", decoded_index);
-    memset(s, '\0', sizeof(s));
+    free(s);
     for (int i = 0; i < decoded_index; i++)
     {
         // printf("%d,", decoded_seq[i]);
