@@ -1,7 +1,7 @@
 #include "compressor_decompressor.h"
-int decoded_index = 0;
-int final_decoded_index = 0;
-extern int final_decoded_seq[SEQ_OG_SIZE];
+extern int decoded_index = 0;
+extern int final_decoded_index = 0;
+extern int final_decoded_seq[8][SEQ_OG_SIZE];
 extern int decoded_seq[SEQ_OG_SIZE];
 char *joiner(int *seq, int seq_size, char *s)
 {
@@ -9,11 +9,15 @@ char *joiner(int *seq, int seq_size, char *s)
     char received_seq[l + 1];
     memset(received_seq, '\0', sizeof(received_seq));
     char buffer[33] = {'\0'};
+    int i = 1;
+    int max = 0;
     for (int i = 1; i < seq_size; i++)
     {
         int rem_l = l - strlen(received_seq);
         memset(buffer, '\0', sizeof(buffer));
         int block = seq[i];
+        if (block > max)
+            max = block;
         if (rem_l >= resolution)
         {
             zfill(block, resolution, buffer);
@@ -696,84 +700,97 @@ void executor(int *seq_og, int seq_og_size, int blocks, int *e)
 }
 int main()
 {
-    int seq_og[SEQ_OG_SIZE] = {0};
-    // int delta[BLOCK_SIZE] = {0};
-    int *delta = (int *)malloc(BLOCK_SIZE * sizeof(int));
-    int e[4096];
-    // int *e = (int *)malloc(BLOCK_SIZE * sizeof(int));
-    int *e_ptr = &e[0];
-    int blocks = SEQ_OG_SIZE / BLOCK_SIZE;
-    int remain_samples = SEQ_OG_SIZE % BLOCK_SIZE;
-    if (remain_samples > 0)
-    {
-        blocks += 1;
-    }
-    int blocks_sequence[blocks][BLOCK_SIZE];
-    int sizeof_seq_og = sizeof(seq_og);
-    printf("before for loop\n");
-    for (int i = 0; i < SEQ_OG_SIZE; i++)
-    {
-        seq_og[i] = 1900 + (i * 10);
-        printf("%d,", seq_og[i]);
-    }
-    printf("after for loop\n");
-    for (int i = 0; i < blocks; i++)
-    {
-        for (int j = 0; j < BLOCK_SIZE; j++)
-        {
-            blocks_sequence[i][j] = 0;
-        }
-    }
-    struct timespec tnsec1, tnsec2;
-    long int diff;
-    clock_gettime(CLOCK_REALTIME, &tnsec1);
-    executor(seq_og, sizeof_seq_og, blocks, e_ptr);
-    // executor(seq_og, sizeof_seq_og, blocks, delta, e_ptr);
-    // executor(seq_og, sizeof_seq_og, blocks, blocks_sequence, delta, e_ptr);
-    clock_gettime(CLOCK_REALTIME, &tnsec2);
-    diff = tnsec2.tv_nsec - tnsec1.tv_nsec;
-    printf("\ndiff time in nano sec=%ld\n", diff);
-    printf("\n");
-    free(delta);
-    int e_size = 0;
-    printf("\n e array:");
-    for (int m = 0; e[m] != NULL; m++)
-    {
-        printf("%d,", e[m]);
-        e_size += 1;
-    }
-    printf("\n");
-    int len_seq = sizeof(seq_og) / sizeof(seq_og[0]);
-    int len_e = e_size;
-    float c_ratio = (float)len_seq / (float)len_e;
-    printf("\nlen_seq=%d,len_e=%d,c_ratio=%f\n", len_seq, len_e, c_ratio);
-    char *s = (char *)malloc((e[0] + 1) * sizeof(char));
-    joiner(e, e_size, s);
-    int s_len = strlen(s);
-    // printf("\ns_len=%d\n", s_len);
-    // printf("\ndecoder bin=%s\n", s);
-    entropy_decoder(s, SEQ_OG_SIZE);
-    // printf("\ndecoded_seq index=%d\n", decoded_index);
-    free(s);
-    for (int i = 0; i < decoded_index; i++)
-    {
-        // printf("%d,", decoded_seq[i]);
-    }
+    // int seq_og[SEQ_OG_SIZE] = {0};
+    // // int delta[BLOCK_SIZE] = {0};
+    // int *delta = (int *)malloc(BLOCK_SIZE * sizeof(int));
+    // int e[4096];
+    // // int *e = (int *)malloc(BLOCK_SIZE * sizeof(int));
+    // int *e_ptr = &e[0];
+    // int blocks = SEQ_OG_SIZE / BLOCK_SIZE;
+    // int remain_samples = SEQ_OG_SIZE % BLOCK_SIZE;
+    // if (remain_samples > 0)
+    // {
+    //     blocks += 1;
+    // }
+    // int blocks_sequence[blocks][BLOCK_SIZE];
+    // int sizeof_seq_og = sizeof(seq_og);
+    // printf("before for loop\n");
+    // for (int i = 0; i < SEQ_OG_SIZE; i++)
+    // {
+    //     seq_og[i] = 1900 + (i * 10);
+    //     printf("%d,", seq_og[i]);
+    // }
+    // printf("after for loop\n");
+    // for (int i = 0; i < blocks; i++)
+    // {
+    //     for (int j = 0; j < BLOCK_SIZE; j++)
+    //     {
+    //         blocks_sequence[i][j] = 0;
+    //     }
+    // }
+    // struct timespec tnsec1, tnsec2;
+    // long int diff;
+    // clock_gettime(CLOCK_REALTIME, &tnsec1);
+    // executor(seq_og, sizeof_seq_og, blocks, e_ptr);
+    // // executor(seq_og, sizeof_seq_og, blocks, delta, e_ptr);
+    // // executor(seq_og, sizeof_seq_og, blocks, blocks_sequence, delta, e_ptr);
+    // clock_gettime(CLOCK_REALTIME, &tnsec2);
+    // diff = tnsec2.tv_nsec - tnsec1.tv_nsec;
+    // printf("\ndiff time in nano sec=%ld\n", diff);
+    // printf("\n");
+    // free(delta);
+    // int e_size = 0;
+    // printf("\n e array:");
+    // for (int m = 0; e[m] != NULL; m++)
+    // {
+    //     printf("%d,", e[m]);
+    //     e_size += 1;
+    // }
+    // printf("\n");
+    // int len_seq = sizeof(seq_og) / sizeof(seq_og[0]);
+    // int len_e = e_size;
+    // float c_ratio = (float)len_seq / (float)len_e;
+    // printf("\nlen_seq=%d,len_e=%d,c_ratio=%f\n", len_seq, len_e, c_ratio);
+    // char *s = (char *)malloc((e[0] + 1) * sizeof(char));
+    // joiner(e, e_size, s);
+    // int s_len = strlen(s);
+    // // printf("\ns_len=%d\n", s_len);
+    // // printf("\ndecoder bin=%s\n", s);
+    // entropy_decoder(s, SEQ_OG_SIZE);
+    // // printf("\ndecoded_seq index=%d\n", decoded_index);
+    // free(s);
+    // for (int i = 0; i < decoded_index; i++)
+    // {
+    //     // printf("%d,", decoded_seq[i]);
+    // }
 
-    printf("\npost processor\n");
-    // int final_decoded_seq[SEQ_OG_SIZE];
-    for (int i = 0; i < decoded_index; i += BLOCK_SIZE)
-    {
+    // printf("\npost processor\n");
+    // // int final_decoded_seq[SEQ_OG_SIZE];
+    // for (int i = 0; i < decoded_index; i += BLOCK_SIZE)
+    // {
 
-        printf("\ni=%d\n", i);
-        post_processor(&decoded_seq[i]);
-        // post_processor(&decoded_seq[i], &final_decoded_seq);
-    }
-    printf("\n=========== after post processor=========\n");
-    for (int i = 0; i < SEQ_OG_SIZE; i++)
+    //     printf("\ni=%d\n", i);
+    //     post_processor(&decoded_seq[i]);
+    //     // post_processor(&decoded_seq[i], &final_decoded_seq);
+    // }
+    // printf("\n=========== after post processor=========\n");
+    // for (int i = 0; i < SEQ_OG_SIZE; i++)
+    // {
+    //     printf("%d,", final_decoded_seq[i]);
+    // }
+    // printf("\nfinal decoded seq done\n");
+    // return 0;
+
+    pthread_t thread_d;
+    while (1)
     {
-        printf("%d,", final_decoded_seq[i]);
+        pthread_create(&thread_d, NULL, decoder, NULL);
+        pthread_join(thread_d, NULL);
     }
-    printf("\nfinal decoded seq done\n");
+    while (1)
+    {
+        printf("in while before pause()\n");
+        pause();
+    }
     return 0;
 }

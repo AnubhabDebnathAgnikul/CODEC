@@ -4,22 +4,28 @@
 #include <math.h>
 #include <unistd.h>
 #include <time.h>
+#include <pthread.h>
+#include <stdatomic.h>
+#include <stdbool.h>
+#include <stdint.h>
 
-#define SEQ_OG_SIZE 1280
+#define SEQ_OG_SIZE 6400
 #define BLOCK_SIZE 64
 #define resolution 16
 #define MIN_LIMIT 0
 #define MAX_LIMIT 65000
 #define THRESHOLD 0
-#define IN_FILE_NAME "valgring2.txt"
-#define OUT_FILE_NAME "valgrind.txt"
-int final_decoded_seq[SEQ_OG_SIZE];
+#define IN_FILE_NAME "op_file.csv"
+#define OUT_FILE_NAME "decoded_data_file.csv"
+int final_decoded_seq[8][SEQ_OG_SIZE];
 int decoded_seq[SEQ_OG_SIZE];
-extern int final_decoded_index;
-extern int decoded_index;
+int final_decoded_index;
+int decoded_index;
 
-void entropy_decoder(char *seq, int size);
-int *post_processor(int *decoded_seq);
+void *decoder(void *arg);
+
+void entropy_decoder(char *seq, int size, int sensor_index, int *decode_seq);
+int *post_processor(int sensor_index, int column_index, int *decoded_seq);
 int *prop(int *seq, int index, int *x);
 
 char *zero_block(int *sequence, int length, char *result, char *encoded);
@@ -44,11 +50,11 @@ int *dec(char *seq, int *e);
 
 int sum(int *dec_seq, int index, int total);
 int FS_decoder(char *seq, int block_size_t, int seq_size, int *dec_seq, int dec_seq_index, int dec_seq_size);
-int FS_block_decoder(char *seq, int seq_size, char *first_sample);
-int no_compression_decoder(char *seq);
-int split_sample_decoder(char *seq, int k, char *first_sample);
-int second_extension_decoder(char *seq, char *first_sample);
-int zero_block_decoder(char *seq, int start_index, int seq_length);
+int FS_block_decoder(char *seq, int seq_size, char *first_sample, int sensor_index, int *decode_seq);
+int no_compression_decoder(char *seq, int sensor_index, int *decode_seq);
+int split_sample_decoder(char *seq, int k, char *first_sample, int sensor_index, int *decode_seq);
+int second_extension_decoder(char *seq, char *first_sample, int sensor_index, int *decode_seq);
+int zero_block_decoder(char *seq, int seq_length, int sensor_index, int *decode_seq);
 
 char *joiner(int *seq, int seq_size, char *s);
 // char *itoa(long int value, char *result, int base);
