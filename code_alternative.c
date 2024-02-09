@@ -1,6 +1,6 @@
 #include "compressor_decompressor.h"
-extern int decoded_index = 0;
-extern int final_decoded_index = 0;
+extern int decoded_index;
+extern int final_decoded_index;
 extern int final_decoded_seq[8][SEQ_OG_SIZE];
 extern int decoded_seq[SEQ_OG_SIZE];
 char *joiner(int *seq, int seq_size, char *s)
@@ -11,7 +11,7 @@ char *joiner(int *seq, int seq_size, char *s)
     char buffer[33] = {'\0'};
     int i = 1;
     int max = 0;
-    for (int i = 1; i < seq_size; i++)
+    for (; i < seq_size; i++)
     {
         int rem_l = l - strlen(received_seq);
         memset(buffer, '\0', sizeof(buffer));
@@ -628,7 +628,7 @@ void executor(int *seq_og, int seq_og_size, int blocks, int *e)
     char encoded_seq[10000];
     int zero_block_seq_len = 0;
     int N = BLOCK_SIZE;
-    printf("before breaker\n");
+    // printf("before breaker\n");
     breaker(seq_og, seq_og_size / sizeof(seq_og[0]), blocks, blocks_sequence);
     int seq_delayed[BLOCK_SIZE];
     int sub_block = 0;
@@ -658,7 +658,7 @@ void executor(int *seq_og, int seq_og_size, int blocks, int *e)
             {
                 memset(encoded, '\0', sizeof(encoded));
                 memset(result, '\0', sizeof(result));
-                printf("\nzero block count !=0\n");
+                // printf("\nzero block count !=0\n");
                 zero_block(zero_block_seq, zero_block_seq_index, &result[0], &encoded[0]);
                 strcat(encoded_seq, result);
                 zero_block_count = 0;
@@ -698,6 +698,7 @@ void executor(int *seq_og, int seq_og_size, int blocks, int *e)
     dec(encoded_seq, e);
     free(pre_processed_block);
 }
+
 int main()
 {
     // int seq_og[SEQ_OG_SIZE] = {0};
@@ -780,7 +781,6 @@ int main()
     // }
     // printf("\nfinal decoded seq done\n");
     // return 0;
-
     pthread_t thread_d;
     while (1)
     {
