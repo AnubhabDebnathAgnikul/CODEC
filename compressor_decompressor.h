@@ -15,14 +15,15 @@
 #define MIN_LIMIT 0
 #define MAX_LIMIT 65000
 #define THRESHOLD 0
-#define IN_FILE_NAME "op_file.csv"
+#define IN_FILE_NAME "op_file_2.csv"
 #define OUT_FILE_NAME "decoded_data_file.csv"
 int final_decoded_seq[8][SEQ_OG_SIZE];
 int decoded_seq[SEQ_OG_SIZE];
-int final_decoded_index;
+int final_decoded_index[8];
 int decoded_index;
 
 void *decoder(void *arg);
+void final_decode(int N_arr, FILE *out_ptr_sr, int i, int *seq_og);
 
 void entropy_decoder(char *seq, int size, int sensor_index, int *decode_seq);
 int *post_processor(int sensor_index, int column_index, int *decoded_seq);

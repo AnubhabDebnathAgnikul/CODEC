@@ -1,6 +1,6 @@
 #include "compressor_decompressor.h"
 extern int decoded_index;
-extern int final_decoded_index;
+extern int final_decoded_index[8];
 extern int final_decoded_seq[8][SEQ_OG_SIZE];
 extern int decoded_seq[SEQ_OG_SIZE];
 char *joiner(int *seq, int seq_size, char *s)
@@ -781,6 +781,10 @@ int main()
     // }
     // printf("\nfinal decoded seq done\n");
     // return 0;
+    for (int i = 0; i < 8; i++)
+    {
+        final_decoded_index[i] = 0;
+    }
     pthread_t thread_d;
     while (1)
     {

@@ -1,7 +1,7 @@
 #include "compressor_decompressor.h"
 extern int final_decoded_seq[8][SEQ_OG_SIZE];
 extern int decoded_seq[SEQ_OG_SIZE];
-extern int final_decoded_index;
+extern int final_decoded_index[8];
 extern int decoded_index;
 char id_lut[17][50] = {0};
 char k_id[13][10];
@@ -509,28 +509,30 @@ int *post_processor(int sensor_index, int j, int *decode_seq)
         {
             printf("\ntheta or seq[i] not match with any data\n");
         }
-        // printf("\n");
-        // printf("index=%d\n", index);
-        // for (int i = 0; i < index; i++)
-        // {
-        //     printf("delta=%d,", delta[i]);
-        // }
-        // printf("\n%%%%%%%%%%\n");
+        printf("\n");
+        printf("index=%d\n", index);
+        for (int i = 0; i < index; i++)
+        {
+            printf("delta=%d,", delta[i]);
+        }
+        printf("\n%%%%%%%%%%\n");
         prop(&delta[0], index, &x[0]);
         // printf("\n");
 
-        // printf("\n%d\n", x[index - 2]);
+        // printf("\ndecoded value=%d\n", );
         // X[final_decoded_index] = x[index - 2];
-        final_decoded_seq[sensor_index][final_decoded_index] = x[index - 2];
-        // printf("%d,\n", final_decoded_index);
-        if (final_decoded_index < SEQ_OG_SIZE - 1)
+        int N = final_decoded_index[sensor_index];
+        final_decoded_seq[sensor_index][N] = x[index - 2];
+        printf("%d,%d,\n", x[index - 2], final_decoded_index[sensor_index]);
+        if (final_decoded_index[sensor_index] < SEQ_OG_SIZE - 1)
         {
-            final_decoded_index++;
+            N++;
+            final_decoded_index[sensor_index] = N;
         }
         // printf("======== last ==========");
     }
     free(x);
-    // printf("\nfinalindex=%d\n", final_decoded_index);
+    printf("\nfinalindex=%d\n", final_decoded_index[sensor_index]);
     // return X;
 }
 
@@ -570,7 +572,6 @@ int sum(int *dec_seq, int index, int total)
 }
 void *decoder(void *arg)
 {
-
     FILE *in_ptr, *out_ptr, *out_ptr_sr[8];
     // in_ptr = fopen(IN_FILE_NAME, "r");
     out_ptr = fopen(OUT_FILE_NAME, "w");
@@ -581,13 +582,16 @@ void *decoder(void *arg)
     char *token;
     int en_len[8];
     fgets(str, sizeof(str), ptr);
+    printf("in decoder fun\n");
     while (1)
     {
+        printf("in while loop 1\n");
         int i = 0;
         fgets(str, sizeof(str), ptr);
         token = strtok(str, ", ");
         while (token != NULL)
         {
+            printf("in while loop 2\n");
             token = strtok(NULL, ", \n");
             if (token != NULL)
             {
@@ -605,7 +609,7 @@ void *decoder(void *arg)
             }
             i++;
         }
-        // printf("after while loop\n");
+        printf("after while loop\n");
         i = 1;
         char str[256] = {'\0'};
         int rem_l[8], R_L = resolution;
@@ -615,6 +619,8 @@ void *decoder(void *arg)
             char name[32];
             snprintf(name, sizeof(name), "output_sensor%d.csv", i);
             out_ptr_sr[i] = fopen(name, "a");
+            fprintf(out_ptr_sr[i], "f_de_%d,\n", i);
+            fflush(out_ptr_sr[i]);
         }
         // printf("after for loop\n");
         int j = 1, k = 1, l = 1, m = 1, n = 1, o = 1, p = 1, q = 1;
@@ -624,21 +630,31 @@ void *decoder(void *arg)
         char *save_ptr1;
         while (fgets(str, sizeof(str), ptr))
         {
+            printf("in while loop 3\n");
             int i = 0;
             token = __strtok_r(str, ", ", &save_ptr1);
             while (token != NULL)
             {
+                printf("in while loop 4\n");
                 token = __strtok_r(NULL, ",\n", &save_ptr1);
                 if (token != NULL)
                 {
                     if (rem_l[i] == 0)
                     {
-                        en_len[i] = strtol(token, NULL, 10);
+                        printf("before finale decoder call %p, %p\n", out_ptr_sr[i], seq_og[i]);
+                        final_decode(N_arr[i], out_ptr_sr[i], i, seq_og[i]);
+                        seq_og[i][0] = rem_l[i] = en_len[i] = strtol(token, NULL, 10);
+                        N_arr[i] = 1;
                         printf("\n enz_len[i]=%d\n", en_len[i]);
                     }
                     else
                     {
+                        printf("in else function");
                         rem_l[i] = rem_l[i] - R_L;
+                        if (rem_l[i] < 0)
+                        {
+                            rem_l[i] = 0;
+                        }
                         N = N_arr[i];
                         seq_og[i][N] = strtol(token, NULL, 10);
                         if (strcmp(token, "NA") == 0)
@@ -672,72 +688,73 @@ void *decoder(void *arg)
                 }
                 i++;
             }
-            // printf("\n");
+            printf("append one line\n");
         }
         printf("\nj=%d,k=%d,l=%d,m=%d,n=%d,o=%d,p=%d,q=%d\n", N_arr[0], N_arr[1], N_arr[2], N_arr[3], N_arr[4], N_arr[5], N_arr[6], N_arr[7]);
-
-        printf("post unpacking\n");
-        printf("\nN_arr[0]=%d\n", N_arr[0]);
-        printf("before malloc\n");
-        int *e[8];
-        int e_size[8];
-        char *s[8];
-        int *decode_seq[8];
-        for (int i = 0; i < 8; i++)
-        {
-            e[i] = (int *)malloc(N_arr[i] * sizeof(int));
-            for (int j = 0; j < N_arr[i]; j++)
-            {
-                e[i][j] = seq_og[i][j];
-                e_size[i] += 1;
-            }
-            // printf("%d\n", N_arr[i]);
-            // printf("%d,\n", seq_og[i][0]);
-            int N = seq_og[i][0];
-            s[i] = (char *)malloc((N + 1) * sizeof(char));
-            memset(s[i], '\0', (N + 1) * sizeof(char));
-            // printf("%p\n", s[i]);
-            // printf("strlen=%ld\n", strlen(s));
-
-            joiner(e[i], e_size[i], s[i]);
-            free(e[i]);
-
-            // printf("after joiner\n");
-            int s_len = strlen(s[i]);
-            // printf("p:%p,strlen=%d\n", decode_seq[i], s_len);
-            decode_seq[i] = (int *)malloc(sizeof(int) * SEQ_OG_SIZE);
-            entropy_decoder(s[i], SEQ_OG_SIZE, i, decode_seq[i]);
-            // printf("after entropy decoder,%d\n", decoded_index);
-            // for (int k = 0; k < decoded_index; k++)
-            // {
-            //     printf("%d,", decode_seq[i][k]);
-            // }
-            // printf("\n");
-            free(s[i]);
-            printf("\npost processor\n");
-            for (int j = 0; j < decoded_index; j += BLOCK_SIZE)
-            {
-                // printf("post processor called:%d,i=%d,j=%d\n", decode_seq[i][j], i, j);
-                post_processor(i, j, decode_seq[i]); // (decode_seq + i
-            }
-            printf("\n=========== after post processor=========\n");
-            decoded_index = 0;
-            free(decode_seq[i]);
-            fprintf(out_ptr_sr[i], "f_de_%d,\n", i);
-            fflush(out_ptr_sr[i]);
-            for (int j = 0; j < SEQ_OG_SIZE; j++)
-            {
-                printf("j=%d,%d,", j, final_decoded_seq[i][j]);
-                fprintf(out_ptr_sr[i], "%d,\n", final_decoded_seq[i][j]);
-                fflush(out_ptr_sr[i]);
-            }
-            fprintf(out_ptr_sr[i], "\n");
-            fflush(out_ptr_sr[i]);
-            // printf("\nfinal decoded seq done\n");
-            final_decoded_index = 0;
-            printf("i=%d\n", i);
-        }
-        pause();
-        printf("\n");
     }
+}
+
+void final_decode(int N_arr, FILE *out_ptr_sr, int x, int *seq_og)
+{
+    printf("in final decode function %d,%p%,%d,%p\n", N_arr, out_ptr_sr, x, seq_og);
+    int *e;
+    int e_size = 0;
+    char *s;
+    int *decode_seq;
+    printf("%d,", seq_og[0]);
+    int i = 0;
+    e = (int *)malloc(N_arr * sizeof(int));
+    printf("seq_og:\n");
+    for (int j = 0; j < N_arr; j++)
+    {
+        e[j] = seq_og[j];
+        e_size += 1;
+        printf("%d,", e[j]);
+    }
+    printf("\n");
+    // printf("%d\n", N_arr);
+    // printf("%d,\n", seq_og[0]);
+    int N = seq_og[0];
+    s = (char *)malloc((N + 1) * sizeof(char));
+    memset(s, '\0', (N + 1) * sizeof(char));
+    // printf("%p\n", s);
+    // printf("strlen=%ld\n", strlen(s));
+
+    joiner(e, e_size, s);
+    free(e);
+
+    printf("after joiner\n");
+    printf("%s\n", s);
+    int s_len = strlen(s);
+    // printf("p:%p,strlen=%d\n", decode_seq, s_len);
+    decode_seq = (int *)malloc(sizeof(int) * SEQ_OG_SIZE);
+    entropy_decoder(s, SEQ_OG_SIZE, x, decode_seq);
+    printf("after entropy decoder,%d\n", decoded_index);
+    for (int k = 0; k < decoded_index; k++)
+    {
+        printf("%d,", decode_seq[k]);
+    }
+    printf("\n");
+    free(s);
+    printf("\npost processor\n");
+    int previous_index = final_decoded_index[x];
+    for (int j = 0; j < decoded_index; j += BLOCK_SIZE)
+    {
+        // printf("post processor called:%d,i=%d,j=%d\n", decode_seq[i][j], i, j);
+        post_processor(x, j, decode_seq);
+    }
+    printf("\n=========== after post processor=========\n");
+    decoded_index = 0;
+    free(decode_seq);
+    fflush(out_ptr_sr);
+    int current_index = final_decoded_index[x];
+    for (int j = previous_index; j < current_index; j++)
+    {
+        // printf("j=%d,%d,", j, final_decoded_seq[x][j]);
+        fprintf(out_ptr_sr, "%d,\n", final_decoded_seq[x][j]);
+        fflush(out_ptr_sr);
+    }
+    fflush(out_ptr_sr);
+    // printf("\nfinal decoded seq done\n");
+    printf("i=%d\n", x);
 }
