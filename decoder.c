@@ -691,6 +691,7 @@ void *decoder(void *arg)
             printf("append one line\n");
         }
         printf("\nj=%d,k=%d,l=%d,m=%d,n=%d,o=%d,p=%d,q=%d\n", N_arr[0], N_arr[1], N_arr[2], N_arr[3], N_arr[4], N_arr[5], N_arr[6], N_arr[7]);
+        pause();
     }
 }
 
